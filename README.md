@@ -1,6 +1,10 @@
 # Tasker Config Utils
 
-This is a project to provide guidance on how Tasker XML files work and provides a script with some utils to extract information and modify Tasker XML files.
+This is a project to provide guidance on how Tasker XML files work and provides a script with some utils to extract information and modify Tasker App XML files.
+
+### Downloads
+Download latest release from [here](https://github.com/Taskomater/Tasker-Config-Utils/releases).
+##
 
 
 ### **`tasker_config_utils script:`**
