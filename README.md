@@ -1,6 +1,6 @@
 # Tasker Config Utils
 
-This is a project to provide guidance on how Tasker XML files work and provides a script with some utils to extract information and modify Tasker App XML files.
+This is a project to provide guidance on how Tasker App XML files work and provides a script with some utils to extract information and modify Tasker App XML files.
 
 ### Downloads
 Download latest release from [here](https://github.com/Taskomater/Tasker-Config-Utils/releases).
@@ -266,7 +266,7 @@ set verbose level to 1 or 2 to get more info when running tasker_config_utils ge
 ##
 
 
-##### Dependencies:
+### Dependencies:
 
 You should have GNU sed installed in your system.
 - Termux (non-root shell): `apt install sed`
@@ -275,7 +275,7 @@ You should have GNU sed installed in your system.
 ##
 
 
-##### Install Instructions For Termux In Android:
+### Install Instructions For Termux In Android:
 
 The `tasker_config_utils` file should be placed in termux `bin` directory `/data/data/com.termux/files/usr/bin` and it should have `termux` uid:gid ownership and have executable `700` permission before it can be run in the termux terminal without specifying its path.
 1. Copy the file to termux bin directory:
