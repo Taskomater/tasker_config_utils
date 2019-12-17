@@ -79,7 +79,7 @@ version=1.0
 #extract all scene anonymous task ids
 #tasker_config_utils extract_tag -s -e --tag='[a-zA-Z0-9]+Task' "config.xml"
 
-#extract profile if of profile using entry task with task id 666 and also print the matching profile nodes
+#extract profile id of profile using entry task with task id 666 and also print the matching profile nodes
 #tasker_config_utils extract_tag -p -e --tag="id" --post_tag='<mid0>666<\/mid0>' -vv "config.xml" 
 
 #convert a project file into a non-standalone project file
