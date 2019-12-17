@@ -1,0 +1,2473 @@
+#!/data/data/com.termux/files/usr/bin/bash
+
+#replace first line of this script with the following line if using termux
+#!/data/data/com.termux/files/usr/bin/bash
+
+#replace first line of this script with the following line if not using termux like a linux distro
+#!/bin/bash
+
+#title:         tasker_config_utils
+#description:   various tasker config utils
+#author:        agnostic-apollo
+#usage:         run "bash tasker_config_utils --help"
+#date:          18-Dec-2019
+#bash version:  4.0 or higher
+#credits:       -
+#license:       MIT License
+version=1.0
+
+
+##### Install Instructions For Termux In Android:
+
+#The `tasker_config_utils` file should be placed in termux `bin` directory `/data/data/com.termux/files/usr/bin` and it should have `termux` uid:gid ownership and have executable `700` permission before it can be run in the termux terminal without specifying its path.
+#1. Copy the file to termux bin directory:
+#	Either `cd` to the download/extraction directory and run following commands
+#
+#	```
+#	cat tasker_config_utils > /data/data/com.termux/files/usr/bin/tasker_config_utils
+#	```
+#
+#	Or use a file browser like root explorer to copy the file to the termux bin directory.
+#
+#2. Set correct ownership and permission:
+#	Either run following commands to set them automatically, requires su binary to be in `$PATH`.
+#
+#	```
+#	export termux_bin_path="/data/data/com.termux/files/usr/bin"; export owner="$(stat -c "%u" "$termux_bin_path")"; for f in tasker_config_utils; do if [ -f "$termux_bin_path/$f" ]; then su -c "chown $owner:$owner \"$termux_bin_path/$f\" && chmod 700 \"$termux_bin_path/$f\""; fi; done;
+#	```
+#
+#	Or manually set them with your file browser. You can find `termux` `uid` and `gid` by running the command `id -u` in a non root shell in termux or by checking the properties of the termux `bin` directory from your file browser.
+#
+#You can run the script placed in the current directory without setting the ownership and permission by running the command `bash tasker_config_utils`.
+#If you are not running the script in termux, set the shebang of the script correctly (the first line of the script).
+
+
+##### Usage:
+#extract all profile names
+#tasker_config_utils extract_tag -p "config.xml"
+
+#extract all scene names
+#tasker_config_utils extract_tag -s "config.xml"
+
+#extract all task names
+#tasker_config_utils extract_tag -t "config.xml"
+
+#extract all project names
+#tasker_config_utils extract_tag -a "config.xml" 
+
+#extract all task names with "Run Both Together" collision handling
+#tasker_config_utils extract_tag -t --post_tag='<rty>2<\/rty>' "config.xml"
+
+#extract all scene names from the project "Base"
+#tasker_config_utils extract_tag -a --pre_tag='<name>Base<\/name>' --tag=scenes "config.xml" 
+
+#extract all profile, scene and task names from tasker_config
+#tasker_config="config.xml"; echo -e "Profiles:"; tasker_config_utils extract_tag -p "$tasker_config"; echo -e "\nScenes:"; tasker_config_utils extract_tag -s "$tasker_config"; echo -e "\nTasks:"; tasker_config_utils extract_tag -t "$tasker_config";
+
+#extract all task labels, the piped sed commands convert XML special characters to ascii
+#tasker_config_utils extract_tag --node='Action' --tag='label' "config.xml" | sed -e 's/&amp;/\&/g' -e 's/&lt;/</g' -e 's/&gt;/>/g'
+
+#extract all task anchor labels, the piped sed commands convert XML special characters to ascii
+#tasker_config_utils extract_tag --node='Action' --pre_tag='<code>300<\/code>' --tag='label' "config.xml" | sed -e 's/&amp;/\&/g' -e 's/&lt;/</g' -e 's/&gt;/>/g'
+
+#extract all task help anchor(action 0) labels of tasks, the piped sed commands convert XML special characters to ascii
+#tasker_config_utils extract_tag --node='Action' --pre_tag='sr="act0".*<code>300<\/code>' --tag='label' "config.xml" | sed -e 's/&amp;/\&/g' -e 's/&lt;/</g' -e 's/&gt;/>/g'
+
+#extract all scene tap events anonymous task ids
+#tasker_config_utils extract_tag -s -e --tag='itemclickTask' "config.xml" 
+
+#extract all scene anonymous task ids
+#tasker_config_utils extract_tag -s -e --tag='[a-zA-Z0-9]+Task' "config.xml"
+
+#extract profile if of profile using entry task with task id 666 and also print the matching profile nodes
+#tasker_config_utils extract_tag -p -e --tag="id" --post_tag='<mid0>666<\/mid0>' -vv "config.xml" 
+
+#convert a project file into a non-standalone project file
+#tasker_config_utils convert_project -v "config.xml" "Foo_Bar.prf.xml" "Foo_Bar-out.prf.xml" "Foo Bar" 
+
+#generate a markdown project info file for a given tasker config file
+#tasker_config_utils generate_config_info -v -a "config.xml" "config.md"
+
+#generate a markdown project info file of a specific project
+#tasker_config_utils generate_config_info -v -p "Foo_Bar.prf.xml" "Foo_Bar-out.prf.md" "Foo Bar"
+
+#define user modifiable variables start
+
+
+#define user modifiable variables end
+
+
+#define default variables start
+#do not modify below values unless you know what you are doing
+
+command_type="" #default to no command
+tasker_config="" #default to none
+project_name="" #default to none
+
+extraction_node="" #default to none
+extraction_tag="" #default to none
+extract_tags_from_entire_node=0 #default to 0
+pre_tag="" #default to none
+post_tag="" #default to none
+
+current_exported_tasker_project="" #default to none
+new_exported_tasker_project="" #default to none
+
+exported_tasker_config="" #default to none
+exported_tasker_config_info="" #default to none
+generate_config_info_mode="" #default to none
+
+tasker_config_utils_verbose_level=0 #default to log level 0
+tasker_config_utils_args_verbose_level=0 #set this to "1" manually, if you want to debug arguments received
+
+#set regexes for validation
+valid_number_regex='^[0-9]+$'
+valid_absolute_path_regex='^(/[^/]+)+$'
+valid_tag='^[a-zA-Z0-9]+$'
+valid_comma_separated_number_list_regex='^[0-9]+(,[0-9]+)*$'
+valid_comma_separated_name_list_regex='^[][/$*.^+();!_a-zA-Z0-9 -]+(,[][/$*.^+();!_a-zA-Z0-9 -]+)*$' #allow '[]/$*.^+();!_a-zA-Z0-9 -'
+
+#define default variables end
+
+
+[[ x"${BASH_SOURCE[0]}" == x"$0" ]] && tasker_config_utils_exit_command="exit" || tasker_config_utils_exit_command="return"
+
+function tasker_config_utils_log () { local log_level="${1}"; shift; if [[ $tasker_config_utils_verbose_level -ge $log_level ]]; then echo "$@"; fi }
+function tasker_config_utils_log_literal () { local log_level="${1}"; shift; if [[ $tasker_config_utils_verbose_level -ge $log_level ]]; then echo -e "$@"; fi }
+function tasker_config_utils_log_errors () { echo "$@" 1>&2; }
+function tasker_config_utils_log_args () { if [[ $tasker_config_utils_args_verbose_level -ge "1" ]]; then echo "$@"; fi }
+function tasker_config_utils_log_arg_errors () { echo "$@" 1>&2; }
+
+
+tasker_config_utils_main() {
+
+	local return_value
+
+	#process the command or options passed to tasker_config_utils
+	process_tasker_config_utils_parameters "$@"
+
+	tasker_config_utils_make_script_executable_and_add_to_path "$0"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "tasker_config_utils_make_script_executable_and_add_to_path failed with exit code $return_value"
+		$tasker_config_utils_exit_command $return_value
+	fi
+
+	#run command
+	if [ -z "$command_type" ]; then
+		show_tasker_config_utils_help
+		$tasker_config_utils_exit_command 0
+	elif [[ "$command_type" != *,* ]] && [[ ",extract_tag,convert_project,generate_config_info," == *",$command_type,"* ]]; then
+		tasker_config_utils_log_literal 2 "Running $command_type command"
+		tasker_config_utils_"$command_type"
+		return_value=$?
+	else
+		tasker_config_utils_log_errors "Unknown command type $command_type"
+		exit_tasker_config_utils_on_error
+	fi
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_literal 1 "\ntasker_config_utils failed"
+	else
+		tasker_config_utils_log_literal 1 "\ntasker_config_utils successful"
+	fi
+
+	$tasker_config_utils_exit_command $return_value
+
+}
+
+tasker_config_utils_extract_tag() {
+
+	local return_value
+
+	tasker_config_utils_log_literal 1 "\nStarting tasker_config_utils_extract_tag"
+
+	#if tasker_config is not set
+	if [ -z "$tasker_config" ]; then
+		tasker_config_utils_log_errors "tasker_config is not set which is required by \"tasker_config_utils_extract_tag\" function"
+		return 1
+	fi
+
+	#if extraction_node is not set
+	if [ -z "$extraction_node" ]; then
+		tasker_config_utils_log_errors "extraction_node is not set which is required by \"tasker_config_utils_extract_tag\" function"
+		return 1
+	fi
+
+	#if extract_tags_from_entire_node is not valid
+	if [[ "$extract_tags_from_entire_node" != "0" ]] && [[ "$extract_tags_from_entire_node" != "1" ]]; then
+		tasker_config_utils_log_errors "The extract_tags_from_entire_node  \"$extract_tags_from_entire_node\" is invalid"
+		return 1
+	fi
+
+	#if extraction_tag not set, set default tag
+	if [ -z "$extraction_tag" ]; then
+		if [[ "$extraction_node" == "Project" ]]; then
+			extraction_tag="name"
+		else
+			extraction_tag="nme"
+		fi
+	fi
+
+	tasker_config_utils_log 1 "tasker_config = \"$tasker_config\""
+	tasker_config_utils_log 1 "extraction_node = \"$extraction_node\""
+	tasker_config_utils_log 1 "extraction_tag = \"$extraction_tag\""
+	tasker_config_utils_log 1 "extract_tags_from_entire_node = \"$extract_tags_from_entire_node\""
+
+	#if tasker_config file is not found
+	if [ ! -f "$tasker_config" ]; then
+		tasker_config_utils_log_arg_errors "Failed to find tasker_config at \"$tasker_config\""
+		return 1
+	fi
+
+	if [ $extract_tags_from_entire_node -eq 0 ]; then
+		
+		#if extraction_node is "Project", "Profile", "Scene" or "Task"
+		if [[ "$extraction_node" == "Project" ]] || [[ "$extraction_node" == "Profile" ]] || \
+				[[ "$extraction_node" == "Scene" ]] || [[ "$extraction_node" == "Task" ]]; then
+			#					#a line matching the opening tag of the extraction_node
+			#					^\t<'"$extraction_node"' sr="[^"]*"[^>]*>$
+			node_extraction_start_regex='^\t<'"$extraction_node"' sr="[^"]*"[^>]*>$'
+
+			#					:a;  #create a label called a
+			#					N;   #add next line to pattern space
+			#					#if pattern space does not end with
+			#					/
+			#					\n\t
+			#					(
+			#					#a sr line of a subnode of extraction_node
+			#					(\t<[a-zA-Z0-9]+ sr="[^"]*"[^>]*>$)
+			#									|
+			#					#or the ending tag of the extraction_node
+			#					(<\/'"$extraction_node"'>$)
+			#					)" 
+			#					#go to label a;
+			#					/!ba;
+			node_extraction_end_regex=':a;N;/\n\t((\t<[a-zA-Z0-9]+ sr="[^"]*"[^>]*>$)|(<\/'"$extraction_node"'>$))/!ba;'
+		else
+			#same as above other than '[\t]+' and `[\t]*` are added so that deeper nodes can be matched 
+			node_extraction_start_regex='^\t[\t]+<'"$extraction_node"' sr="[^"]*"[^>]*>$'
+			node_extraction_end_regex=':a;N;/\n\t\t(([\t]+<[a-zA-Z0-9]+ sr="[^"]*"[^>]*>$)|([\t]*<\/'"$extraction_node"'>$))/!ba;'
+		fi
+
+		tasker_config_utils_log 2 "node_extraction_start_regex = \"$node_extraction_start_regex\""
+		tasker_config_utils_log 2 "node_extraction_end_regex = \"$node_extraction_end_regex\""
+
+		#find all tag values
+		#use -E for extended regex, and -n to disable printing
+		#sed -nE ''"$node_extraction_start_regex"'/ #match extraction_node sr line depending on node_extraction_start_regex
+		#					{  #if matched start a subscript
+		#					#add next n lines to pattern space depending on node_extraction_end_regex
+		#					'"$node_extraction_end_regex"';
+		#					#if pattern space matches the pattern ".*'"$pre_tag"'.*<'"$extraction_tag"'>(.*)<\/'"$extraction_tag"'>.*'"$post_tag"'.*", then extract extraction_tag value and print it
+		#					s/.*'"$pre_tag"'.*<'"$extraction_tag"'>(.*)<\/'"$extraction_tag"'>.*'"$post_tag"'.*/\1/p;
+		#					}'
+		extracted_tag_values="$(sed -nE '/'"$node_extraction_start_regex"'/{'"$node_extraction_end_regex"'s/.*'"$pre_tag"'.*<'"$extraction_tag"'>(.*)<\/'"$extraction_tag"'>.*'"$post_tag"'.*/\1/p;}' "$tasker_config")"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to find $extraction_tag tag values of $extraction_node nodes from tasker_config"
+			return $return_value
+		fi
+	else
+
+		#if extraction_node is "Project", "Profile", "Scene" or "Task"
+		if [[ "$extraction_node" == "Project" ]] || [[ "$extraction_node" == "Profile" ]] || \
+				[[ "$extraction_node" == "Scene" ]] || [[ "$extraction_node" == "Task" ]]; then
+			#					#a line matching the opening tag of the extraction_node
+			#					^\t<'"$extraction_node"' sr="[^"]*"[^>]*>$
+			node_extraction_start_regex='^\t<'"$extraction_node"' sr="[^"]*"[^>]*>$'
+
+			#					:a;  #create a label called a
+			#					N;   #add next line to pattern space
+			#					#if pattern space does not end with
+			#					/
+			#					#the ending tag of the extraction_node
+			#					\n\t<\/'"$extraction_node"'>$
+			#					#go to label a;
+			#					/!ba;
+			node_extraction_end_regex=':a;N;/\n\t<\/'"$extraction_node"'>$/!ba;'
+		else
+			#same as above other than '[\t]+' is added so that deeper nodes can be matched 
+			node_extraction_start_regex='^\t[\t]+<'"$extraction_node"' sr="[^"]*"[^>]*>$'
+			node_extraction_end_regex=':a;N;/\n\t[\t]+<\/'"$extraction_node"'>$/!ba;'
+		fi
+
+		tasker_config_utils_log 2 "node_extraction_start_regex = \"$node_extraction_start_regex\""
+		tasker_config_utils_log 2 "node_extraction_end_regex = \"$node_extraction_end_regex\""
+
+		#extract node
+		#use -E for extended regex, and -n to disable printing
+		#sed -nE '/'"$node_extraction_start_regex"'/ #match extraction_node sr line depending on node_extraction_start_regex
+		#					{  #if matched start a subscript
+		#					#add next n lines to pattern space depending on node_extraction_end_regex
+		#					'"$node_extraction_end_regex"';
+		#					#if pattern space matches the pattern ".*'"$pre_tag"'.*<'"$extraction_tag"'>(.*)<\/'"$extraction_tag"'>.*'"$post_tag"'.*", then extract extraction_tag value and print it
+		#					s/.*'"$pre_tag"'.*<'"$extraction_tag"'>(.*)<\/'"$extraction_tag"'>.*'"$post_tag"'.*/\1/p;
+		#					}'
+		extracted_nodes="$(sed -nE '/'"$node_extraction_start_regex"'/{'"$node_extraction_end_regex"'/.*'"$pre_tag"'.*<'"$extraction_tag"'>(.*)<\/'"$extraction_tag"'>.*'"$post_tag"'.*/p;}' "$tasker_config")"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to extract $extraction_node nodes from tasker_config"
+			return $return_value
+		fi
+
+		tasker_config_utils_log_literal 2 "\n\nextracted_nodes:"
+		tasker_config_utils_log_literal 2 "\""
+		tasker_config_utils_log 2 "$extracted_nodes"
+		tasker_config_utils_log_literal 2 "\"\n\n"
+
+		#find all tag values
+		extracted_tag_values="$(echo "$extracted_nodes" | sed -nE 's/\t\t[\t]*<'"$extraction_tag"'>(.*)<\/'"$extraction_tag"'>/\1/gp;')"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to find $extraction_tag tag values of $extraction_node nodes from tasker_config"
+			return $return_value
+		fi
+	fi
+
+	echo "$extracted_tag_values"
+	return_value=$?
+
+	return $return_value
+
+}
+
+#How making a non-standalone exported project file works:
+#Receive tasker_config and current_exported_tasker_project file paths and the project_name that was exported
+#Then extract the project nodes matching project_name from the tasker_config and current_exported_tasker_project files
+#Then extract the list of profile pids, scene names and task tids that originally exited in the project_name project from the tasker_config file
+#Then create a copy of the current_exported_tasker_project at new_exported_tasker_project
+#Then remove all profile nodes in the new_exported_tasker_project that do not have the profile id that matches the list of profile ids extracted \
+#from the tasker_config file
+#Then remove all scene nodes in the new_exported_tasker_project that do not have the scene name that matches the list of scene names extracted \
+#from the tasker_config file
+#At this point all profiles and scenes that originally did not exist in the project_name project in the tasker_config file would have been removed
+#Only named and anonymous tasks that existed in both in project_name project and other projects would remain.
+#To find out which task ids to remove is bit more tricky. The tids list of the project_name project extracted from the tasker_config file earlier \
+#will not contain any ids of anonymous tasks of profiles and scenes. So removing all tasks who id does not match the ids in the tids list will also \
+#remove anonymous tasks of profiles and scenes of the project_name project and all named and anonymous tasks of other projects. So first we need to \
+#find out which anonymous tasks belong to the project_name project so that they are not removed and only the named and anonymous tasks of other \
+#projects are removed.
+#Since profiles and scenes of other projects have already been removed from the new_exported_tasker_project, we can find out which anonymous task tids \
+#the remaining profiles and scenes are referring to since those belong to the project_name project.
+#First we extract all ids of tasks referred by the profile nodes by extracting the <mid0> and <mid1> tag values. This will contain both ids of both \
+#named and anonymous tasks.
+#Then we extract all ids of tasks referred by the scene nodes by extracting the <[a-zA-Z0-9]+Task> tag values. This will contain ids of all scene \
+#events anonymous tasks.
+#Generate a new tids list by adding both of profile and scene referred task ids to the tids list of the project_name project extracted from the \
+#tasker_config file earlier
+#Then we remove all duplicate values, likely generated by profiles referring to named tasks.
+#Then we remove all tasks nodes in the new_exported_tasker_project that do not have the task id that matches the new tids list generated
+#Removing nodes will also have created empty lines in the new_exported_tasker_project file. These are then removed.
+#If no scenes exist anymore, then the <dmetric> tag is also removed.
+#Then we replace the <pids> and <scenes> tag values of the project_name project node in the new_exported_tasker_project with the ones extracted \
+#from the tasker_config file earlier and also replace <tids> tag value with the new tids list generated so that tasker knows which profiles, scenes \
+#and tasks belong to the project during import. 
+#We can have gone the other way of extracting profiles, scenes and tasks belonging to the project_name project directly from the tasker_config file \
+#but tasker makes changes to nodes while exporting and it would be unsafe to do that ourselves without knowing exactly what they are. Example <flag> \
+#tags are changed.
+tasker_config_utils_convert_project() {
+
+	local return_value
+
+	tasker_config_utils_log_literal 1 "\nStarting tasker_config_utils_convert_project"
+
+	#if tasker_config is not set
+	if [ -z "$tasker_config" ]; then
+		tasker_config_utils_log_errors "tasker_config is not set which is required by \"tasker_config_utils_convert_project\" function"
+		return 1
+	fi
+
+	#if current_exported_tasker_project is not set
+	if [ -z "$current_exported_tasker_project" ]; then
+		tasker_config_utils_log_errors "current_exported_tasker_project is not set which is required by \"tasker_config_utils_convert_project\" function"
+		return 1
+	fi
+
+	#if new_exported_tasker_project is not set
+	if [ -z "$new_exported_tasker_project" ]; then
+		tasker_config_utils_log_errors "new_exported_tasker_project is not set which is required by \"tasker_config_utils_convert_project\" function"
+		return 1
+	fi
+
+	#if project_name is not set
+	if [ -z "$project_name" ]; then
+		tasker_config_utils_log_errors "project_name is not set which is required by \"tasker_config_utils_convert_project\" function"
+		return 1
+	fi
+
+	tasker_config_utils_log 1 "tasker_config = \"$tasker_config\""
+	tasker_config_utils_log 1 "current_exported_tasker_project = \"$current_exported_tasker_project\""
+	tasker_config_utils_log 1 "new_exported_tasker_project = \"$new_exported_tasker_project\""
+	tasker_config_utils_log 1 "project_name = \"$project_name\""
+
+	#if tasker_config file is not found
+	if [ ! -f "$tasker_config" ]; then
+		tasker_config_utils_log_arg_errors "Failed to find tasker_config at \"$tasker_config\""
+		return 1
+	fi
+
+	#if current_exported_tasker_project file is not found
+	if [ ! -f "$current_exported_tasker_project" ]; then
+		tasker_config_utils_log_arg_errors "Failed to find current_exported_tasker_project at \"$current_exported_tasker_project\""
+		return 1
+	fi
+
+	#escape `[]/$*.^` with backslashes for sed
+	#test with: echo -n "[]/$.*^" | sed -zE -e 's/[][/$*.^]/\\&/g'
+	sed_formatted_project_name="$(echo -n "$project_name" | sed -zE -e 's/[][/$*.^]/\\&/g')"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to convert project_name \"$project_name\" to sed supported format"
+		return $return_value
+	fi
+	tasker_config_utils_log 2 "sed_formatted_project_name = \"$sed_formatted_project_name\""
+
+
+
+	###Extract the project_name project node from tasker_config
+
+	tasker_config_utils_log_literal 1 "\n"
+	tasker_config_utils_log 1 "Extracting the \"$project_name\" project node from tasker_config"
+
+	#use -E for extended regex, and -n to disable printing
+	#sed -nE '/^\t<Project sr="[^"]*"[^>]*>$/' #match Project sr line
+	#					{   #if matched start a subscript
+	#					:a;  #create a label called a
+	#					N;   #add next line to pattern space
+	#					#if pattern space does not end with "\n\t</Project>$" go to label a;
+	#					/\n\t<\/Project>$/!ba
+	#					#if pattern space matches ".*<name>'"$sed_formatted_project_name"'<\/name>.*", then print pattern space
+	#					/.*<name>'"$sed_formatted_project_name"'<\/name>.*/p;
+	#					}'
+	tasker_config_project_node="$(sed -nE '/^\t<Project sr="[^"]*"[^>]*>$/{:a;N;/\n\t<\/Project>$/!ba;/.*<name>'"$sed_formatted_project_name"'<\/name>.*/p;}' "$tasker_config")"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to run sed to extract the \"$project_name\" project node from tasker_config"
+		return $return_value
+	fi
+
+	#if tasker_config_project_node file is empty
+	if [ -z "$tasker_config_project_node" ]; then
+		tasker_config_utils_log_arg_errors "Failed to find project_name \"$project_name\" in tasker_config \"$tasker_config\""
+		return 1
+	fi
+
+	tasker_config_utils_log_literal 2 "\n\ntasker_config_project_node:"
+	tasker_config_utils_log_literal 2 "\""
+	tasker_config_utils_log 2 "$tasker_config_project_node"
+	tasker_config_utils_log_literal 2 "\"\n\n"
+
+
+
+	###Extract the project_name project node from current_exported_tasker_project
+
+	tasker_config_utils_log 1 "Extracting the \"$project_name\" project node from current_exported_tasker_project"
+
+	#use -E for extended regex, and -n to disable printing
+	#sed -nE '/^\t<Project sr="proj0"[^>]*>$/' #match Project sr line
+	#					{   #if matched start a subscript
+	#					:a;  #create a label called a
+	#					N;   #add next line to pattern space
+	#					#if pattern space does not end with "\n\t</Project>$" go to label a;
+	#					/\n\t<\/Project>$/!ba
+	#					#if pattern space matches ".*<name>'"$sed_formatted_project_name"'<\/name>.*", then print pattern space
+	#					/.*<name>'"$sed_formatted_project_name"'<\/name>.*/p;
+	#					}'
+	current_exported_tasker_project_project_node="$(sed -nE '/^\t<Project sr="proj0"[^>]*>$/{:a;N;/\n\t<\/Project>$/!ba;/.*<name>'"$sed_formatted_project_name"'<\/name>.*/p;}' "$current_exported_tasker_project")"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to run sed to extract the \"$project_name\" project node from current_exported_tasker_project"
+		return $return_value
+	fi
+
+	tasker_config_utils_log_literal 2 "\n\ncurrent_exported_tasker_project_project_node:"
+	tasker_config_utils_log_literal 2 "\""
+	tasker_config_utils_log 2 "$current_exported_tasker_project_project_node"
+	tasker_config_utils_log_literal 2 "\"\n\n"
+
+	#if current_exported_tasker_project_project_node file is empty
+	if [ -z "$current_exported_tasker_project_project_node" ]; then
+		tasker_config_utils_log_arg_errors "Failed to find project_name \"$project_name\" in new_exported_tasker_project \"$new_exported_tasker_project\""
+		return 1
+	fi
+
+
+
+	###Extract the list of profile pids that originally exited in the project_name project from the tasker_config file
+
+	tasker_config_utils_log_literal 1 "\n"
+	tasker_config_utils_log 1 "Extracting the profile pids that originally exited in the \"$project_name\" project from the tasker_config file"
+
+	#extract the <pids> tag value from the project_name project node extracted from the tasker_config
+	tasker_config_profile_ids="$(echo "$tasker_config_project_node" | sed -nzE 's/.*<pids>(.*)<\/pids>.*/\1/p;')"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to find profile_ids from tasker_config"
+		return $return_value
+	fi
+
+	sorted_tasker_config_profile_ids="$(echo "$tasker_config_profile_ids" | sed -E 's/,/\n/g' | sort -n | sed -zE 's/\n/,/g' | sed 's/,$//')"
+
+	tasker_config_utils_log 1 "tasker_config_profile_ids: $tasker_config_profile_ids"
+	tasker_config_utils_log 2 "sorted_tasker_config_profile_ids: $sorted_tasker_config_profile_ids"
+
+	#if tasker_config_profile_ids are set but not valid
+	if [ ! -z "$tasker_config_profile_ids" ] && [[ ! "$tasker_config_profile_ids" =~ $valid_comma_separated_number_list_regex ]]; then
+		tasker_config_utils_log_errors "The tasker_config_profile_ids extracted is not a valid command separated number list"
+		return 1
+	fi
+
+
+
+	###Extract the list of scene names that originally exited in the project_name project from the tasker_config file
+
+	tasker_config_utils_log_literal 1 "\n"
+	tasker_config_utils_log 1 "Extracting the scene names that originally exited in the \"$project_name\" project from the tasker_config file"
+
+	#extract the <scenes> tag value from the project_name project node extracted from the tasker_config
+	tasker_config_scenes="$(echo "$tasker_config_project_node" | sed -nzE 's/.*<scenes>(.*)<\/scenes>.*/\1/p;')"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to find scenes from tasker_config"
+		return $return_value
+	fi
+
+	sorted_tasker_config_scenes="$(echo "$tasker_config_scenes" | sed -E 's/,/\n/g' | sort -n | sed -zE 's/\n/,/g' | sed 's/,$//')"
+
+	tasker_config_utils_log 1 "tasker_config_scenes: $tasker_config_scenes"
+	tasker_config_utils_log 2 "sorted_tasker_config_scenes: $sorted_tasker_config_scenes"
+
+	#if tasker_config_scenes are set but not valid
+	if [ ! -z "$tasker_config_scenes" ] && [[ ! "$tasker_config_scenes" =~ $valid_comma_separated_name_list_regex ]]; then
+		tasker_config_utils_log_errors "The tasker_config_scenes extracted are not a valid command separated name list"
+		return 1
+	fi
+
+
+
+	###Extract the list of task tids that originally exited in the project_name project from the tasker_config file
+
+	tasker_config_utils_log_literal 1 "\n"
+	tasker_config_utils_log 1 "Extracting the task tids that originally exited in the \"$project_name\" project from the tasker_config file"
+
+	#extract the <tids> tag value from the project_name project node extracted from the tasker_config
+	tasker_config_task_ids="$(echo "$tasker_config_project_node" | sed -nzE 's/.*<tids>(.*)<\/tids>.*/\1/p;')"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to find task_ids from tasker_config"
+		return $return_value
+	fi
+
+	sorted_tasker_config_task_ids="$(echo "$tasker_config_task_ids" | sed -E 's/,/\n/g' | sort -n | sed -zE 's/\n/,/g' | sed 's/,$//')"
+
+	tasker_config_utils_log 1 "tasker_config_task_ids: $tasker_config_task_ids"
+	tasker_config_utils_log 2 "sorted_tasker_config_task_ids: $sorted_tasker_config_task_ids"
+
+	#if tasker_config_task_ids are set but not valid
+	if [ ! -z "$tasker_config_task_ids" ] && [[ ! "$tasker_config_task_ids" =~ $valid_comma_separated_number_list_regex ]]; then
+		tasker_config_utils_log_errors "The tasker_config_task_ids extracted is not a valid command separated number list"
+		return 1
+	fi
+
+
+
+	###Create a copy of current_exported_tasker_project at new_exported_tasker_project
+
+	tasker_config_utils_log_literal 1 "\n"
+	tasker_config_utils_log 1 "Copying current_exported_tasker_project \"$current_exported_tasker_project\" to new_exported_tasker_project \"$new_exported_tasker_project\""
+
+	#create new_exported_tasker_project parent directory if it does not exist
+	create_parent_path "$new_exported_tasker_project" "new_exported_tasker_project"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "create_parent_path failed with exit code $return_value"
+		return $return_value
+	fi
+
+	#copy current_exported_tasker_project to new_exported_tasker_project
+	cp -f "$current_exported_tasker_project" "$new_exported_tasker_project"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to copy current_exported_tasker_project \"$current_exported_tasker_project\" to new_exported_tasker_project \"$new_exported_tasker_project\""
+		return $return_value
+	fi
+
+	#if new_exported_tasker_project file is not found
+	if [ ! -f "$new_exported_tasker_project" ]; then
+		tasker_config_utils_log_errors "Failed to find \"$new_exported_tasker_project\" file"
+		return 1
+	fi
+
+
+
+	###Remove all profile nodes in the new_exported_tasker_project that do not have the profile id that matches the list of profile ids extracted \
+	###from the tasker_config file
+
+	#if tasker_config_profile_ids are set
+	if [ ! -z "$tasker_config_profile_ids" ] ; then
+
+		#Set the regex replace string that will be used to replace the <pids> tag line of the project_name project node in the \
+		#new_exported_tasker_project with the pids extracted from the tasker_config file earlier
+		new_exported_tasker_project_profile_ids_tag='\n\t\t<pids>'"$tasker_config_profile_ids"'<\/pids>'
+
+		#Set the regex that will be used to remove all profile nodes in the new_exported_tasker_project that do not have the profile id that \
+		#matches the list of profile ids extracted from the tasker_config file
+
+		#Convert the list of profile ids extracted from the tasker_config file to a regex OR format by replacing all commas ',' with ')|(' \
+		#and then prefixing and suffixing with '(('' and '))'
+		#Example '1,2,3' -> '((1|2|3))' 
+		new_exported_tasker_project_remove_profile_regex="$(echo "$tasker_config_profile_ids" | sed -E 's/,/)|(/g;')"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to convert tasker_config_profile_ids to new_exported_tasker_project_remove_profile_regex"
+			return $return_value
+		fi
+		new_exported_tasker_project_remove_profile_regex='(('"$new_exported_tasker_project_remove_profile_regex"'))'
+
+		#Set the regex
+		#if pattern space does not match '/.*<id>((1|2|3))<\/id>.*/!', i.e a profile node without an <id> tag that matches a value in the pids list 
+		#/.*<id>'"$new_exported_tasker_project_remove_profile_regex"'<\/id>.*/!
+		#then if pattern space matches '.*\n\t<\/Profile>$', replace it with nothing to remove the profile node
+		#s/.*\n\t<\/Profile>$//
+		new_exported_tasker_project_remove_profile_regex='/.*<id>'"$new_exported_tasker_project_remove_profile_regex"'<\/id>.*/! s/.*\n\t<\/Profile>$//'
+	else
+		#Set the regex replace string that will be used to replace the <pids> tag line of the project_name project node in the \
+		#new_exported_tasker_project with nothing since no pids were extracted from the tasker_config file earlier
+		new_exported_tasker_project_profile_ids_tag=''
+
+		#Set the regex that will be used to remove all profile nodes in the new_exported_tasker_project that do not have the profile id that \
+		#matches the list of profile ids extracted from the tasker_config file
+		#Set the regex to replace all profile nodes to nothing since no pids were extracted from the tasker_config file earlier
+		new_exported_tasker_project_remove_profile_regex='s/.*\n\t<\/Profile>$//'
+	fi
+
+	tasker_config_utils_log 2 ""
+	tasker_config_utils_log 1 "Removing profiles from new_exported_tasker_project whose id does not match new_exported_tasker_project_remove_profile_regex"
+
+	tasker_config_utils_log 2 "new_exported_tasker_project_remove_profile_regex: $new_exported_tasker_project_remove_profile_regex"
+	
+	#Remove any unneeded profile nodes from the new_exported_tasker_project
+	#use  -i'' to replace inplace and to overwrite input file, and -E for extended regex
+	#sed -i'' -E '/^\t<Profile sr="[^"]*"[^>]*>$/' #match Profile sr line
+	#					/{   #if matched start a subscript
+	#					:a;  #create a label called a
+	#					N;   #add next line to pattern space
+	#					#if pattern space does not end with "\n\t</Profile>$" go to label a;
+	#					/\n\t<\/Profile>$/!ba;
+	#					#replace pattern space according to regex defined in new_exported_tasker_project_remove_profile_regex
+	#					'"$new_exported_tasker_project_remove_profile_regex"';
+	#					}'
+	sed -i'' -E '/^\t<Profile sr="[^"]*"[^>]*>$/{:a;N;/\n\t<\/Profile>$/!ba;'"$new_exported_tasker_project_remove_profile_regex"';}' "$new_exported_tasker_project"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to remove profiles from new_exported_tasker_project whose id does not match new_exported_tasker_project_remove_profile_regex"
+		return $return_value
+	fi
+
+
+
+	###Remove all scene nodes in the new_exported_tasker_project that do not have the scene name that matches the list of scene names extracted \
+	###from the tasker_config file
+
+	#if tasker_config_scenes are set
+	if [ ! -z "$tasker_config_scenes" ] ; then
+
+		#escape `[]/$*.^` with backslashes for sed
+		#test with: echo -n "[]/$.*^" | sed -zE -e 's/[][/$*.^]/\\&/g'
+		sed_formatted_tasker_config_scenes="$(echo -n "$tasker_config_scenes" | sed -zE -e 's/[][/$*.^]/\\&/g')"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to convert tasker_config_scenes to sed supported format"
+			return $return_value
+		fi
+
+		#Create a regex to replace the <scenes> tag values of the project_name project node in the new_exported_tasker_project with the ones extracted \
+		#from the tasker_config file earlier
+		new_exported_tasker_project_scenes_tag='\n\t\t<scenes>'"$sed_formatted_tasker_config_scenes"'<\/scenes>'
+
+		#Set the regex that will be used to remove all scene nodes in the new_exported_tasker_project that do not have the scene name that \
+		#matches the list of scene names extracted from the tasker_config file
+
+		#Convert the list of scene names extracted from the tasker_config file to a regex OR format by replacing all commas ',' with ')|(' \
+		#and then prefixing and suffixing with '(('' and '))'
+		#Example 'Scene 1,Scene 2,Scene 3' -> '((Scene 1|Scene 2|Scene 3))' 
+		new_exported_tasker_project_remove_scenes_regex="$(echo "$sed_formatted_tasker_config_scenes" | sed -E 's/,/)|(/g;')"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to convert tasker_config_scenes to new_exported_tasker_project_remove_scenes_regex"
+			return $return_value
+		fi
+		new_exported_tasker_project_remove_scenes_regex='(('"$new_exported_tasker_project_remove_scenes_regex"'))'
+
+		#Set the regex
+		#if pattern space does not match '/.*<nme>((Scene 1|Scene 2|Scene 3))<\/nme>.*/!', i.e a scene node without an <nme> tag that matches a \
+		#value in the scene names list 
+		#/.*<nme>'"$new_exported_tasker_project_remove_scenes_regex"'<\/nme>.*/!
+		#then if pattern space matches '.*\n\t<\/Scene>$', replace it with nothing to remove the scene node
+		#s/.*\n\t<\/Scene>$//
+		new_exported_tasker_project_remove_scenes_regex='/.*<nme>'"$new_exported_tasker_project_remove_scenes_regex"'<\/nme>.*/! s/.*\n\t<\/Scene>$//'
+	else
+		#Set the regex replace string that will be used to replace the <scenes> tag line of the project_name project node in the \
+		#new_exported_tasker_project with nothing since no scene names were extracted from the tasker_config file earlier
+		new_exported_tasker_project_scenes_tag=''
+
+		#Set the regex that will be used to remove all scene nodes in the new_exported_tasker_project that do not have the profile id that \
+		#matches the list of scene names extracted from the tasker_config file
+		#Set the regex to replace all scene nodes to nothing since no scene names were extracted from the tasker_config file earlier
+		new_exported_tasker_project_remove_scenes_regex='s/.*\n\t<\/Scene>$//'
+	fi
+
+	tasker_config_utils_log 2 ""
+	tasker_config_utils_log 1 "Removing scenes from new_exported_tasker_project whose nme does not match new_exported_tasker_project_remove_scenes_regex"
+	
+	tasker_config_utils_log 2 "new_exported_tasker_project_remove_scenes_regex: $new_exported_tasker_project_remove_scenes_regex"
+	
+	#Remove any unneeded scene nodes from the new_exported_tasker_project
+	#use  -i'' to replace inplace and to overwrite input file, and -E for extended regex
+	#sed -i'' -E '/^\t<Scene sr="[^"]*"[^>]*>$/' #match Scene sr line
+	#					{   #if matched start a subscript
+	#					:a;  #create a label called a
+	#					N;   #add next line to pattern space
+	#					#if pattern space does not end with "\n\t</Scene>$" go to label a;
+	#					/\n\t<\/Scene>$/!ba;
+	#					#replace pattern space according to regex defined in new_exported_tasker_project_remove_scenes_regex
+	#					'"$new_exported_tasker_project_remove_scenes_regex"';
+	#					}'
+	sed -i'' -E '/^\t<Scene sr="[^"]*"[^>]*>$/{:a;N;/\n\t<\/Scene>$/!ba;'"$new_exported_tasker_project_remove_scenes_regex"';}' "$new_exported_tasker_project"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to remove scenes from new_exported_tasker_project whose nme does not match new_exported_tasker_project_remove_scenes_regex"
+		return $return_value
+	fi
+
+
+
+	###Extract all ids of tasks referred by the profile nodes by extracting the <mid0> and <mid1> tag values
+
+	tasker_config_utils_log 2 ""
+	tasker_config_utils_log 1 "Extracting the profile entry task ids from new_exported_tasker_project"
+
+	#extract all entry task ids from the <mid0> tag
+	new_exported_tasker_project_profile_entry_task_ids="$(tasker_config_utils extract_tag -p --tag='mid0' "$new_exported_tasker_project")"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to get profile entry task ids from new_exported_tasker_project"
+		return $return_value
+	fi
+
+	#replace all newlines with a comma in the extracted entry task ids string
+	new_exported_tasker_project_profile_entry_task_ids="$(echo "$new_exported_tasker_project_profile_entry_task_ids" | sed -zE -e 's/\n/,/g' -e 's/,$//')"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to convert new_exported_tasker_project_profile_entry_task_ids to a comma separated list"
+		return $return_value
+	fi
+
+	tasker_config_utils_log 2 "new_exported_tasker_project_profile_entry_task_ids: $new_exported_tasker_project_profile_entry_task_ids"
+
+	#if new_exported_tasker_project_profile_entry_task_ids are set but not valid
+	if [ ! -z "$new_exported_tasker_project_profile_entry_task_ids" ] && [[ ! "$new_exported_tasker_project_profile_entry_task_ids" =~ $valid_comma_separated_number_list_regex ]]; then
+		tasker_config_utils_log_errors "The new_exported_tasker_project_profile_entry_task_ids extracted is not a valid command separated number list"
+		return 1
+	fi
+
+	tasker_config_utils_log 2 ""
+	tasker_config_utils_log 1 "Extracting the profile exit task ids from new_exported_tasker_project"
+
+	#extract all exit task ids from the <mid1> tag
+	new_exported_tasker_project_profile_exit_task_ids="$(tasker_config_utils extract_tag -p --tag='mid1' "$new_exported_tasker_project")"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to get profile exit task ids from new_exported_tasker_project"
+		return $return_value
+	fi
+
+	#replace all newlines with a comma in the extracted exit task ids string
+	new_exported_tasker_project_profile_exit_task_ids="$(echo "$new_exported_tasker_project_profile_exit_task_ids" | sed -zE -e 's/\n/,/g' -e 's/,$//')"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to convert new_exported_tasker_project_profile_exit_task_ids to a comma separated list"
+		return $return_value
+	fi
+
+	tasker_config_utils_log 2 "new_exported_tasker_project_profile_exit_task_ids: $new_exported_tasker_project_profile_exit_task_ids"
+
+	#if new_exported_tasker_project_profile_exit_task_ids are set but not valid
+	if [ ! -z "$new_exported_tasker_project_profile_exit_task_ids" ] && [[ ! "$new_exported_tasker_project_profile_exit_task_ids" =~ $valid_comma_separated_number_list_regex ]]; then
+		tasker_config_utils_log_errors "The new_exported_tasker_project_profile_exit_task_ids extracted is not a valid command separated number list"
+		return 1
+	fi
+
+
+
+	###Extract all ids of tasks referred by the scene nodes by extracting the <[a-zA-Z0-9]+Task> tag values
+
+	tasker_config_utils_log 2 ""
+	tasker_config_utils_log 1 "Extracting all ids of tasks referred by the scene nodes from new_exported_tasker_project"
+
+	#extract all scene anonymous task ids from the tags matching '<[a-zA-Z0-9]+Task>'
+	new_exported_tasker_project_scene_task_ids="$(tasker_config_utils extract_tag -s -e --tag='[a-zA-Z0-9]+Task' "$new_exported_tasker_project")"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to get scene anonymous task ids from new_exported_tasker_project"
+		return $return_value
+	fi
+
+	#replace all newlines with a comma in the extracted scene anonymous task ids string
+	new_exported_tasker_project_scene_task_ids="$(echo "$new_exported_tasker_project_scene_task_ids" | sed -zE -e 's/\n/,/g' -e 's/,$//')"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to convert new_exported_tasker_project_scene_task_ids to a comma separated list"
+		return $return_value
+	fi
+
+	tasker_config_utils_log 2 "new_exported_tasker_project_scene_task_ids: $new_exported_tasker_project_scene_task_ids"
+
+	#if new_exported_tasker_project_scene_task_ids are set but not valid
+	if [ ! -z "$new_exported_tasker_project_scene_task_ids" ] && [[ ! "$new_exported_tasker_project_scene_task_ids" =~ $valid_comma_separated_number_list_regex ]]; then
+		tasker_config_utils_log_errors "The new_exported_tasker_project_scene_task_ids extracted is not a valid command separated number list"
+		return 1
+	fi
+
+
+
+	###Generate a new tids list by adding both of profile and scene referred task ids to the tids list of the project_name project extracted from the \
+	#tasker_config file earlier
+
+	tasker_config_utils_log 2 ""
+	tasker_config_utils_log 1 "Generating a new tids list"
+
+	#Set tasker_config_task_ids to new_exported_tasker_project_task_ids
+	new_exported_tasker_project_task_ids="$tasker_config_task_ids"
+
+	#if new_exported_tasker_project_profile_entry_task_ids are set, then add them to new_exported_tasker_project_task_ids
+	if [ ! -z "$new_exported_tasker_project_profile_entry_task_ids" ]; then
+		new_exported_tasker_project_task_ids="$new_exported_tasker_project_task_ids,$new_exported_tasker_project_profile_entry_task_ids"
+	fi
+
+	#if new_exported_tasker_project_profile_exit_task_ids are set, then add them to new_exported_tasker_project_task_ids
+	if [ ! -z "$new_exported_tasker_project_profile_exit_task_ids" ]; then
+		new_exported_tasker_project_task_ids="$new_exported_tasker_project_task_ids,$new_exported_tasker_project_profile_exit_task_ids"
+	fi
+
+	#if new_exported_tasker_project_scene_task_ids are set, then add them to new_exported_tasker_project_task_ids
+	if [ ! -z "$new_exported_tasker_project_scene_task_ids" ]; then
+		new_exported_tasker_project_task_ids="$new_exported_tasker_project_task_ids,$new_exported_tasker_project_scene_task_ids"
+	fi
+
+	
+	#Remove all duplicate values, likely generated by profiles referring to named tasks
+	new_exported_tasker_project_task_ids="$(echo "$new_exported_tasker_project_task_ids" | sed -zE 's/^,//' | sed -E 's/,/\n/g' | cat -n | sort -uk2 | sort -nk1 | cut -f2- | sed -zE 's/\n/,/g' | sed 's/,$//')"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to remove starting comma and sorting new_exported_tasker_project_task_ids"
+		return $return_value
+	fi
+
+	tasker_config_utils_log 1 "new_exported_tasker_project_task_ids: $new_exported_tasker_project_task_ids"
+	tasker_config_utils_log 2 "sorted_new_exported_tasker_project_task_ids: $(echo -n "$new_exported_tasker_project_task_ids" | sed -E 's/,/\n/g' | sort -n | sed -zE 's/\n/,/g' | sed 's/,$//')"
+
+	#if new_exported_tasker_project_task_ids are set but not valid
+	if [ ! -z "$new_exported_tasker_project_task_ids" ] && [[ ! "$new_exported_tasker_project_task_ids" =~ $valid_comma_separated_number_list_regex ]]; then
+		tasker_config_utils_log_errors "The new_exported_tasker_project_task_ids extracted is not a valid command separated number list"
+		return 1
+	fi
+
+
+
+	###Remove all tasks nodes in the new_exported_tasker_project that do not have the task id that matches the new tids list generated
+
+	#if new_exported_tasker_project_task_ids are set
+	if [ ! -z "$new_exported_tasker_project_task_ids" ] ; then
+		#Set the regex replace string that will be used to replace the <tids> tag line of the project_name project node in the \
+		#new_exported_tasker_project with the new tids list generated 
+		new_exported_tasker_project_task_ids_tag='\n\t\t<tids>'"$new_exported_tasker_project_task_ids"'<\/tids>'
+
+		#Set the regex that will be used to remove all task nodes in the new_exported_tasker_project that do not have the task id that \
+		#matches the new tids list generated
+
+		#Convert the list of task ids generated to a regex OR format by replacing all commas ',' with ')|(' \
+		#and then prefixing and suffixing with '(('' and '))'
+		#Example '1,2,3' -> '((1|2|3))' 
+		new_exported_tasker_project_remove_task_regex="$(echo "$new_exported_tasker_project_task_ids" | sed -E 's/,/)|(/g;')"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to convert new_exported_tasker_project_task_ids to new_exported_tasker_project_remove_task_regex"
+			return $return_value
+		fi
+		new_exported_tasker_project_remove_task_regex='(('"$new_exported_tasker_project_remove_task_regex"'))'
+
+		#Set the regex
+		#if pattern space does not match '/.*<id>((1|2|3))<\/id>.*/!', i.e a task node without an <id> tag that matches a value in the tids list 
+		#/.*<id>'"$new_exported_tasker_project_remove_task_regex"'<\/id>.*/!
+		#then if pattern space matches '.*\n\t<\/Task>$', replace it with nothing to remove the task node
+		#s/.*\n\t<\/Task>$//
+		new_exported_tasker_project_remove_task_regex='/.*<id>'"$new_exported_tasker_project_remove_task_regex"'<\/id>.*/! s/.*\n\t<\/Task>$//'
+	else
+		#Set the regex replace string that will be used to replace the <tids> tag line of the project_name project node in the \
+		#new_exported_tasker_project with nothing since no tids exist in the new tids list generated
+		new_exported_tasker_project_task_ids_tag=''
+
+		#Set the regex that will be used to remove all task nodes in the new_exported_tasker_project that do not have the task id that \
+		#matches the new tids list generated
+		#Set the regex to replace all task nodes to nothing since no tids exist in the new tids list generated
+		new_exported_tasker_project_remove_task_regex='s/.*\n\t<\/Task>$//'
+	fi
+
+	tasker_config_utils_log_literal 1 "\n"
+	tasker_config_utils_log 1 "Removing tasks from new_exported_tasker_project whose id does not match new_exported_tasker_project_remove_task_regex"
+
+	tasker_config_utils_log 2 "new_exported_tasker_project_remove_task_regex: $new_exported_tasker_project_remove_task_regex"
+
+	#Remove any unneeded task nodes from the new_exported_tasker_project
+	#use  -i'' to replace inplace and to overwrite input file, and -E for extended regex
+	#sed -i'' -E '/^\t<Task sr="[^"]*"[^>]*>$/' #match Task sr line
+	#					{   #if matched start a subscript
+	#					:a;  #create a label called a
+	#					N;   #add next line to pattern space
+	#					#if pattern space does not end with "\n\t</Task>$" go to label a;
+	#					/\n\t<\/Task>$/!ba;
+	#					#replace pattern space according to regex defined in new_exported_tasker_project_remove_task_regex
+	#					'"$new_exported_tasker_project_remove_task_regex"';
+	#					}'
+	sed -i'' -E '/^\t<Task sr="[^"]*"[^>]*>$/{:a;N;/\n\t<\/Task>$/!ba;'"$new_exported_tasker_project_remove_task_regex"';}' "$new_exported_tasker_project"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to remove tasks from new_exported_tasker_project whose id does not match new_exported_tasker_project_remove_task_regex"
+		return $return_value
+	fi
+
+
+
+	###Removing empty lines in the new_exported_tasker_project file created by removing nodes.
+
+	tasker_config_utils_log 2 ""
+	tasker_config_utils_log 1 "Removing extra newlines between nodes in new_exported_tasker_project"
+
+	#use -i'' to replace inplace and to overwrite input file, -E for extended regex, and -Z  to separate lines by NUL characters instead of newlines
+	#sed -i'' -zE 's
+	#if pattern space matches any tags defined in matching group 1, followed by one or more newlines, followed by any tags in matching group 8
+	#/
+	#( #matching group 1
+	#	(\n\t<\/Profile>)
+	#			|
+	#	(\n\t<\/Project>)
+	#			|
+	#	(\n\t<\/Scene>)
+	#			|
+	#	(\n\t<\/Task>)
+	#			|
+	#	(\n\t<dmetric>[^<]*<\/dmetric>)
+	#			|
+	#	(<TaskerData[^>]*>)
+	#)
+	#\n+
+	#( #matching group 8
+	#	\t<Profile sr=
+	#			|
+	#	\t<Project sr=
+	#			|
+	#	\t<Scene sr=
+	#			|
+	#	\t<Task sr=
+	#			|
+	#	<\/TaskerData>
+	#)
+	#/
+	#replace pattern space with matching group 1, followed by only one newline, followed by matching group 8
+	#\1\n\8/g'
+	sed -i'' -zE 's/((\n\t<\/Profile>)|(\n\t<\/Project>)|(\n\t<\/Scene>)|(\n\t<\/Task>)|(\n\t<dmetric>[^<]*<\/dmetric>)|(<TaskerData[^>]*>))\n+(\t<Profile sr=|\t<Project sr=|\t<Scene sr=|\t<Task sr=|<\/TaskerData>)/\1\n\8/g' "$new_exported_tasker_project"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to remove extra newlines between nodes in new_exported_tasker_project"
+		return $return_value
+	fi
+
+
+
+	###Replace the <pids> and <scenes> tag values of the project_name project node in the new_exported_tasker_project with the ones extracted \
+	###from the tasker_config file earlier and also replace <tids> tag value with the new tids list generated
+
+	tasker_config_utils_log 2 ""
+	tasker_config_utils_log 1 "Replacing <pids>, <scenes> and <tids> tag values of the \"$project_name\" project node in new_exported_tasker_project"
+	tasker_config_utils_log 2 "new_exported_tasker_project_profile_ids_tag: $new_exported_tasker_project_profile_ids_tag"
+	tasker_config_utils_log 2 "new_exported_tasker_project_scenes_tag: $new_exported_tasker_project_scenes_tag"
+	tasker_config_utils_log 2 "new_exported_tasker_project_task_ids_tag: $new_exported_tasker_project_task_ids_tag"
+
+	#replace <pids>, <scenes> and <tids> tag values
+	#use -i'' to replace inplace and to overwrite input file, -E for extended regex
+	#sed -i'' -E '/^\t<Project sr="proj0"[^>]*>$/' #match Project sr line
+	#					{   #if matched start a subscript
+	#					:a;  #create a label called a
+	#					N;   #add next line to pattern space
+	#					#if pattern space does not end with "\n\t</Project>$" go to label a;
+	#					/\n\t<\/Project>$/!ba
+	#					#if pattern space matches "\n\t\t<pids>.*<\/pids>", then replace it with new_exported_tasker_project_profile_ids_tag
+	#					s/\n\t\t<pids>.*<\/pids>/'"$new_exported_tasker_project_profile_ids_tag"'/;
+	#					#if pattern space matches "\n\t\t<scenes>.*<\/scenes>", then replace it with new_exported_tasker_project_scenes_tag
+	#					s/\n\t\t<scenes>.*<\/scenes>/'"$new_exported_tasker_project_scenes_tag"'/;
+	#					#if pattern space matches "\n\t\t<tids>.*<\/tids>", then replace it with new_exported_tasker_project_task_ids_tag
+	#					s/\n\t\t<tids>.*<\/tids>/'"$new_exported_tasker_project_task_ids_tag"'/;
+	#					}'
+	sed -i'' -E '/^\t<Project sr="proj0"[^>]*>$/{:a;N;/\n\t<\/Project>$/!ba;s/\n\t\t<pids>.*<\/pids>/'"$new_exported_tasker_project_profile_ids_tag"'/;s/\n\t\t<scenes>.*<\/scenes>/'"$new_exported_tasker_project_scenes_tag"'/;s/\n\t\t<tids>.*<\/tids>/'"$new_exported_tasker_project_task_ids_tag"'/;}' "$new_exported_tasker_project"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to replace <pids>, <scenes> and <tids> tag values of the \"$project_name\" project node in new_exported_tasker_project"
+		return $return_value
+	fi
+
+
+
+	#Remove <dmetric> tag if no scenes exist in the new_exported_tasker_project
+	tasker_config_utils_log 2 ""
+	tasker_config_utils_log 1 "Removing <dmetric> tag if no scenes exist in new_exported_tasker_project"
+
+	output_new_exported_tasker_project_scenes="$(tasker_config_utils extract_tag -s --tag='nme' "$new_exported_tasker_project")"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to find scene names in new_exported_tasker_project"
+		return $return_value
+	fi
+
+	#if output_new_exported_tasker_project_scenes is empty, then it means no scenes exist
+	if [ -z "$output_new_exported_tasker_project_scenes" ]; then
+		#remove <dmetric> tag
+		#use -i'' to replace inplace and to overwrite input file, -E for extended regex
+		#sed -i'' -E
+		#if pattern space matches "(<TaskerData[^>]*>)\n\t<dmetric>[^<]*<\/dmetric>", then replace it with matching group 1
+		#s/\n\t<dmetric>[^<]*<\/dmetric>//
+		sed -i'' -zE 's/(<TaskerData[^>]*>)\n\t<dmetric>[^<]*<\/dmetric>/\1/' "$new_exported_tasker_project"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to remove unneeded <dmetric> tag in new_exported_tasker_project"
+			return $return_value
+		fi
+	fi
+
+
+
+	###Check if any profile, scene or task was not removed that did not exist in the respective lists
+	tasker_config_utils_log 2 ""
+	tasker_config_utils_log 1 "Checking if any profile, scene or task was not removed that did not exist in the respective lists"
+
+	output_new_exported_tasker_project_profile_ids="$(tasker_config_utils extract_tag -p --tag='id' "$new_exported_tasker_project")"
+	tasker_config_utils_log 2 "output_new_exported_tasker_project_profile_ids: $(echo -n "$output_new_exported_tasker_project_profile_ids" | sort -n | sed -zE 's/\n/,/g' | sed 's/,$//')"
+	output_new_exported_tasker_project_scenes="$(tasker_config_utils extract_tag -s --tag='nme' "$new_exported_tasker_project")"
+	tasker_config_utils_log 2 "output_new_exported_tasker_project_scenes: $(echo -n "$output_new_exported_tasker_project_scenes" | sort -n | sed -zE 's/\n/,/g' | sed 's/,$//')"
+	output_new_exported_tasker_project_task_ids="$(tasker_config_utils extract_tag -t --tag='id' "$new_exported_tasker_project")"
+	tasker_config_utils_log 2 "output_new_exported_tasker_project_task_ids: $(echo -n "$output_new_exported_tasker_project_task_ids" | sort -n | sed -zE 's/\n/,/g' | sed 's/,$//')"
+	
+	#output_new_exported_tasker_project_profile_ids="$output_new_exported_tasker_project_profile_ids"$'\n8'
+
+	profile_ids_not_removed="$(
+	(
+		echo "$output_new_exported_tasker_project_profile_ids" | sort -n | uniq
+		echo "$sorted_tasker_config_profile_ids" | sed -E 's/,/\n/g' | sort -n | uniq
+		echo "$sorted_tasker_config_profile_ids" | sed -E 's/,/\n/g' | sort -n  | uniq
+	) | sort -n | uniq -u | sed -zE 's/\n/,/g' | sed 's/,$//')"
+
+	#if profile_ids_not_removed is not empty
+	if [ ! -z "$profile_ids_not_removed" ]; then
+		tasker_config_utils_log_errors "Failed to remove some profile nodes"
+		tasker_config_utils_log_errors "profile_ids_not_removed: $profile_ids_not_removed"
+		return 1
+	fi
+
+	scenes_not_removed="$(
+	(
+		echo "$output_new_exported_tasker_project_scenes" | sort -n | uniq
+		echo "$sorted_tasker_config_scenes" | sed -E 's/,/\n/g' | sort -n | uniq
+		echo "$sorted_tasker_config_scenes" | sed -E 's/,/\n/g' | sort -n  | uniq
+	) | sort -n | uniq -u | sed -zE 's/\n/,/g' | sed 's/,$//')"
+
+	#if scenes_not_removed is not empty
+	if [ ! -z "$scenes_not_removed" ]; then
+		tasker_config_utils_log_errors "Failed to remove some scene nodes"
+		tasker_config_utils_log_errors "scenes_not_removed: $scenes_not_removed"
+		return 1
+	fi
+
+	task_ids_not_removed="$(
+	(
+		echo "$output_new_exported_tasker_project_task_ids" | sort -n | uniq
+		echo "$new_exported_tasker_project_task_ids" | sed -E 's/,/\n/g' | sort -n | uniq
+		echo "$new_exported_tasker_project_task_ids" | sed -E 's/,/\n/g' | sort -n  | uniq
+	) | sort -n | uniq -u | sed -zE 's/\n/,/g' | sed 's/,$//')"
+
+	#if task_ids_not_removed is not empty
+	if [ ! -z "$task_ids_not_removed" ]; then
+		tasker_config_utils_log_errors "Failed to remove some task nodes"
+		tasker_config_utils_log_errors "task_ids_not_removed: $task_ids_not_removed"
+		return 1
+	fi
+
+	tasker_config_utils_log 2 ""
+
+	return 0
+
+}
+
+#tasker_config_utils_generate_config_info $exported_tasker_config $exported_tasker_config_info $project_name
+tasker_config_utils_generate_config_info() {
+
+	local return_value
+
+	tasker_config_utils_log_literal 1 "\nStarting tasker_config_utils_generate_config_info"
+
+	#if exported_tasker_config is not set
+	if [ -z "$exported_tasker_config" ]; then
+		tasker_config_utils_log_errors "exported_tasker_config is not set which is required by \"tasker_config_utils_generate_config_info\" function"
+		return 1
+	fi
+
+	#if exported_tasker_config_info is not set
+	if [ -z "$exported_tasker_config_info" ]; then
+		tasker_config_utils_log_errors "exported_tasker_config_info is not set which is required by \"tasker_config_utils_generate_config_info\" function"
+		return 1
+	fi
+
+	#if generate_config_info_mode is set to "project" and  project_name is not set
+	if [[ "$generate_config_info_mode" == "project" ]] && [ -z "$project_name" ]; then
+		tasker_config_utils_log_errors "generate_config_info_mode is \"$generate_config_info_mode\" but project_name is not set which is required by \"tasker_config_utils_generate_config_info\" function"
+		return 1
+	fi
+
+	tasker_config_utils_log 1 "exported_tasker_config = \"$exported_tasker_config\""
+	tasker_config_utils_log 1 "exported_tasker_config_info = \"$exported_tasker_config_info\""
+
+	#if exported_tasker_config file is not found
+	if [ ! -f "$exported_tasker_config" ]; then
+		tasker_config_utils_log_arg_errors "Failed to find exported_tasker_config at \"$exported_tasker_config\""
+		return 1
+	fi
+
+	#if generate_config_info_mode is set to "project"
+	if [[ "$generate_config_info_mode" == "project" ]]; then
+		tasker_config_utils_log 1 "project_name = \"$project_name\""
+
+		#escape `[]/$*.^` with backslashes for sed
+		#test with: echo -n "[]/$.*^" | sed -zE -e 's/[][/$*.^]/\\&/g'
+		sed_formatted_project_name="$(echo -n "$project_name" | sed -zE -e 's/[][/$*.^]/\\&/g')"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to convert project_name \"$project_name\" to sed supported format"
+			return $return_value
+		fi
+		tasker_config_utils_log 2 "sed_formatted_project_name = \"$sed_formatted_project_name\""
+
+		###Extract the project_name project node from exported_tasker_config
+
+		tasker_config_utils_log_literal 1 "\n"
+		tasker_config_utils_log 1 "Extracting the \"$project_name\" project node from exported_tasker_config"
+
+		#use -E for extended regex, and -n to disable printing
+		#sed -nE '/^\t<Project sr="[^"]*"[^>]*>$/' #match Project sr line
+		#					{   #if matched start a subscript
+		#					:a;  #create a label called a
+		#					N;   #add next line to pattern space
+		#					#if pattern space does not end with "\n\t</Project>$" go to label a;
+		#					/\n\t<\/Project>$/!ba
+		#					#if pattern space matches ".*<name>'"$sed_formatted_project_name"'<\/name>.*", then print pattern space
+		#					/.*<name>'"$sed_formatted_project_name"'<\/name>.*/p;
+		#					}'
+		exported_tasker_config_node="$(sed -nE '/^\t<Project sr="[^"]*"[^>]*>$/{:a;N;/\n\t<\/Project>$/!ba;/.*<name>'"$sed_formatted_project_name"'<\/name>.*/p;}' "$exported_tasker_config")"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to run sed to extract the \"$project_name\" project node from exported_tasker_config"
+			return $return_value
+		fi
+
+		#if exported_tasker_config_node file is empty
+		if [ -z "$exported_tasker_config_node" ]; then
+			tasker_config_utils_log_arg_errors "Failed to find project_name \"$project_name\" in exported_tasker_config \"$exported_tasker_config\""
+			return 1
+		fi
+
+		tasker_config_utils_log_literal 2 "\n\nexported_tasker_config_node:"
+		tasker_config_utils_log_literal 2 "\""
+		tasker_config_utils_log 2 "$exported_tasker_config_node"
+		tasker_config_utils_log_literal 2 "\"\n\n"
+	fi
+
+	
+
+	###Extract the list of profile ids from the exported_tasker_config file
+
+	tasker_config_utils_log_literal 1 "\n"
+
+	#if generate_config_info_mode is set to "all"
+	if [[ "$generate_config_info_mode" == "all" ]]; then
+		tasker_config_utils_log 1 "Extracting the profile ids from the exported_tasker_config file"
+
+		#extract the <id> tag value of all profile nodes from the exported_tasker_config
+		exported_tasker_config_profile_ids="$(tasker_config_utils extract_tag -p --tag='id' "$exported_tasker_config")"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to extract profile ids from exported_tasker_config"
+			return $return_value
+		fi
+
+		#convert extracted profile ids to a comma separated list
+		exported_tasker_config_profile_ids="$(echo "$exported_tasker_config_profile_ids" | sed -zE 's/\n/,/g' | sed 's/,$//')"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to convert exported_tasker_config_profile_ids to a comma separated list"
+			return $return_value
+		fi
+	#if generate_config_info_mode is set to "project"
+	elif [[ "$generate_config_info_mode" == "project" ]]; then
+		tasker_config_utils_log 1 "Extracting the profile ids of \"$project_name\" project from the exported_tasker_config file"
+
+		#extract the <pids> tag value from the project_name project node extracted from the exported_tasker_config
+		exported_tasker_config_profile_ids="$(echo "$exported_tasker_config_node" | sed -nzE 's/.*<pids>(.*)<\/pids>.*/\1/p;')"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to extract profile ids of \"$project_name\" from exported_tasker_config"
+			return $return_value
+		fi
+	else
+		tasker_config_utils_log_errors "generate_config_info_mode \"$generate_config_info_mode\" not handled"
+		return 1
+	fi
+
+	sorted_exported_tasker_config_profile_ids="$(echo "$exported_tasker_config_profile_ids" | sed -E 's/,/\n/g' | sort -n | sed -zE 's/\n/,/g' | sed 's/,$//')"
+
+	tasker_config_utils_log 1 "exported_tasker_config_profile_ids: $exported_tasker_config_profile_ids"
+	tasker_config_utils_log 2 "sorted_exported_tasker_config_profile_ids: $sorted_exported_tasker_config_profile_ids"
+
+	#if exported_tasker_config_profile_ids are set but not valid
+	if [ ! -z "$exported_tasker_config_profile_ids" ] && [[ ! "$exported_tasker_config_profile_ids" =~ $valid_comma_separated_number_list_regex ]]; then
+		tasker_config_utils_log_errors "The exported_tasker_config_profile_ids extracted is not a valid command separated number list"
+		return 1
+	fi
+
+
+
+	###Extract the list of scene names from the exported_tasker_config file
+
+	tasker_config_utils_log_literal 1 "\n"
+
+	#if generate_config_info_mode is set to "all"
+	if [[ "$generate_config_info_mode" == "all" ]]; then
+		tasker_config_utils_log 1 "Extracting the scene names from the exported_tasker_config file"
+
+		#extract the <nme> tag value of all scene nodes from the exported_tasker_config
+		tasker_config_scenes="$(tasker_config_utils extract_tag -s --tag='nme' "$exported_tasker_config")"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to extract scene names from exported_tasker_config"
+			return $return_value
+		fi
+
+		#convert extracted scene names to a comma separated list
+		tasker_config_scenes="$(echo "$tasker_config_scenes" | sed -zE 's/\n/,/g' | sed 's/,$//')"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to convert tasker_config_scenes to a comma separated list"
+			return $return_value
+		fi
+	#if generate_config_info_mode is set to "project"
+	elif [[ "$generate_config_info_mode" == "project" ]]; then
+		tasker_config_utils_log 1 "Extracting the scene names of \"$project_name\" project from the exported_tasker_config file"
+
+		#extract the <scenes> tag value from the project_name project node extracted from the exported_tasker_config
+		tasker_config_scenes="$(echo "$exported_tasker_config_node" | sed -nzE 's/.*<scenes>(.*)<\/scenes>.*/\1/p;')"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to extract scenes of \"$project_name\" from exported_tasker_config"
+			return $return_value
+		fi
+	else
+		tasker_config_utils_log_errors "generate_config_info_mode \"$generate_config_info_mode\" not handled"
+		return 1
+	fi
+	
+	sorted_tasker_config_scenes="$(echo "$tasker_config_scenes" | sed -E 's/,/\n/g' | sort -n | sed -zE 's/\n/,/g' | sed 's/,$//')"
+
+	tasker_config_utils_log 1 "tasker_config_scenes: $tasker_config_scenes"
+	tasker_config_utils_log 2 "sorted_tasker_config_scenes: $sorted_tasker_config_scenes"
+
+	#if tasker_config_scenes are set but not valid
+	if [ ! -z "$tasker_config_scenes" ] && [[ ! "$tasker_config_scenes" =~ $valid_comma_separated_name_list_regex ]]; then
+		tasker_config_utils_log_errors "The tasker_config_scenes extracted are not a valid command separated name list"
+		return 1
+	fi
+
+
+
+	###Extract the list of task ids from the exported_tasker_config file
+
+	tasker_config_utils_log_literal 1 "\n"
+
+	#if generate_config_info_mode is set to "all"
+	if [[ "$generate_config_info_mode" == "all" ]]; then
+		tasker_config_utils_log 1 "Extracting the task ids from the exported_tasker_config file"
+
+		#extract the <id> tag value of all task nodes from the exported_tasker_config
+		exported_tasker_config_task_ids="$(tasker_config_utils extract_tag -t --tag='id' "$exported_tasker_config")"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to extract task ids from exported_tasker_config"
+			return $return_value
+		fi
+
+		#convert extracted task ids to a comma separated list
+		exported_tasker_config_task_ids="$(echo "$exported_tasker_config_task_ids" | sed -zE 's/\n/,/g' | sed 's/,$//')"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to convert exported_tasker_config_task_ids to a comma separated list"
+			return $return_value
+		fi
+	#if generate_config_info_mode is set to "project"
+	elif [[ "$generate_config_info_mode" == "project" ]]; then
+		tasker_config_utils_log 1 "Extracting the task ids of \"$project_name\" project from the tasker_config file"
+
+		#extract the <tids> tag value from the project_name project node extracted from the exported_tasker_config
+		exported_tasker_config_task_ids="$(echo "$exported_tasker_config_node" | sed -nzE 's/.*<tids>(.*)<\/tids>.*/\1/p;')"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to extract task ids of \"$project_name\" from exported_tasker_config"
+			return $return_value
+		fi
+	else
+		tasker_config_utils_log_errors "generate_config_info_mode \"$generate_config_info_mode\" not handled"
+		return 1
+	fi
+
+	sorted_exported_tasker_config_task_ids="$(echo "$exported_tasker_config_task_ids" | sed -E 's/,/\n/g' | sort -n | sed -zE 's/\n/,/g' | sed 's/,$//')"
+
+	tasker_config_utils_log 1 "exported_tasker_config_task_ids: $exported_tasker_config_task_ids"
+	tasker_config_utils_log 2 "sorted_exported_tasker_config_task_ids: $sorted_exported_tasker_config_task_ids"
+
+	#if exported_tasker_config_task_ids are set but not valid
+	if [ ! -z "$exported_tasker_config_task_ids" ] && [[ ! "$exported_tasker_config_task_ids" =~ $valid_comma_separated_number_list_regex ]]; then
+		tasker_config_utils_log_errors "The exported_tasker_config_task_ids extracted is not a valid command separated number list"
+		return 1
+	fi
+
+
+
+	### Initialize Config Info
+
+	tasker_version="$(sed -nE 's/^<TaskerData sr="[^"]*"[^>]*tv="([^"]*)"[^>]*>$/\1/p' "$exported_tasker_config")"
+	timestamp="$(date +"%Y-%m-%d %H.%M.%S")"
+	export_info=$'\n\n'"## Export Info:"
+	export_info+=$'\n**Tasker Version:** `'"$tasker_version"'`'
+	export_info+=$'\n**Timestamp:** `'"$timestamp"'`'
+
+	profiles_name_list=$'\n\n'"## Profile Names:"
+	scenes_name_list=$'\n\n'"## Scene Names:"
+	tasks_name_list=$'\n\n'"## Task Names:"
+	profiles_info_list=$'\n\n'"## Profiles Info:"
+	tasks_info_list=$'\n\n'"## Tasks Info:"
+
+
+
+	###Generate Profiles Info
+
+	tasker_config_utils_log_literal 1 "\n"
+	tasker_config_utils_log 1 "Generating Profiles Info"
+
+	IFS=, read -ra exported_tasker_config_profile_ids_array <<< "$exported_tasker_config_profile_ids"
+
+	profiles_name_list+=$'\n**Count:** `'"${#exported_tasker_config_profile_ids_array[@]}"'`'$'\n'
+
+	i=1
+	for profile_id in "${exported_tasker_config_profile_ids_array[@]}"; do
+
+		tasker_config_utils_log 2 ""
+		tasker_config_utils_log 1 "Processing profile \"$profile_id\""
+
+		tasker_config_utils_log 2 "Extracting the profile name of profile $profile_id from exported_tasker_config"
+
+		#extract profile name of profile with id matching profile_id
+		profile_name="$(tasker_config_utils extract_tag -p --pre_tag='<id>'"$profile_id"'<\/id>' --tag='nme' "$exported_tasker_config")"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to get profile name of profile $profile_id from exported_tasker_config"
+			return $return_value
+		fi
+
+		profiles_info_list+=$'\n\n**#:** `'"$i"'`'
+
+		#if profile_name is not set
+		if [ -z "$profile_name" ] ; then
+			profile_name="Anonymous ($profile_id)"
+		fi
+
+		profile_name_inline_code="$(convert_string_to_markdown_code "inline-code" "$profile_name")"
+		profiles_name_list+=$'\n'"- *$profile_name_inline_code*"
+		profiles_info_list+=$'\n**Name:** '"$profile_name_inline_code"
+
+		profiles_info_list+=$'\n**ID:** `'"$profile_id"'`'
+
+		tasker_config_utils_log 2 "Extracting the profile entry task id of profile $profile_id from exported_tasker_config"
+
+		#extract entry task id from the <mid0> tag
+		profile_entry_task_id="$(tasker_config_utils extract_tag -p --tag='mid0' --pre_tag='<id>'"$profile_id"'<\/id>' "$exported_tasker_config")"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to get profile entry task id of profile $profile_id from exported_tasker_config"
+			return $return_value
+		fi
+
+		#if profile_entry_task_id is set
+		if [ ! -z "$profile_entry_task_id" ]; then
+			#if profile_entry_task_id is not valid
+			if [[ ! "$profile_entry_task_id" =~ $valid_number_regex ]]; then
+				tasker_config_utils_log_errors "The profile_entry_task_id \"$profile_entry_task_id\" extracted of profile $profile_id is not a valid number"
+				return 1
+			fi
+
+			#extract task name of task with id matching profile_entry_task_id
+			task_name="$(tasker_config_utils extract_tag -t --pre_tag='<id>'"$profile_entry_task_id"'<\/id>' --tag='nme' "$exported_tasker_config")"
+			return_value=$?
+			if [ $return_value -ne 0 ]; then
+				tasker_config_utils_log_errors "Failed to get task name of profile $profile_id entry task from exported_tasker_config"
+				return $return_value
+			fi
+
+			#if task_name is not set
+			if [ -z "$task_name" ] ; then
+				task_name="Anonymous ($profile_entry_task_id)"
+			fi
+
+			task_name_inline_code="$(convert_string_to_markdown_code "inline-code" "$task_name")"
+			profiles_info_list+=$'\n**Entry Task:** '"$task_name_inline_code"
+		fi
+
+		tasker_config_utils_log 2 "Extracting the profile exit task id of profile $profile_id from exported_tasker_config"
+
+		#extract exit task id from the <mid1> tag
+		profile_exit_task_id="$(tasker_config_utils extract_tag -p --tag='mid1' --pre_tag='<id>'"$profile_id"'<\/id>' "$exported_tasker_config")"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to get profile exit task id of profile $profile_id from exported_tasker_config"
+			return $return_value
+		fi
+
+		#if profile_exit_task_id is set
+		if [ ! -z "$profile_exit_task_id" ]; then
+			#if profile_exit_task_id is not valid
+			if [[ ! "$profile_exit_task_id" =~ $valid_number_regex ]]; then
+				tasker_config_utils_log_errors "The profile_exit_task_id \"$profile_exit_task_id\" extracted of profile $profile_id is not a valid number"
+				return 1
+			fi
+
+			#extract task name of task with id matching profile_exit_task_id
+			task_name="$(tasker_config_utils extract_tag -t --pre_tag='<id>'"$profile_exit_task_id"'<\/id>' --tag='nme' "$exported_tasker_config")"
+			return_value=$?
+			if [ $return_value -ne 0 ]; then
+				tasker_config_utils_log_errors "Failed to get task name of profile $profile_id exit task from exported_tasker_config"
+				return $return_value
+			fi
+
+			#if task_name is not set
+			if [ -z "$task_name" ] ; then
+				task_name="Anonymous ($profile_exit_task_id)"
+			fi
+
+			task_name_inline_code="$(convert_string_to_markdown_code "inline-code" "$task_name")"
+			profiles_info_list+=$'\n**Exit Task:** '"$task_name_inline_code"
+		fi
+
+		profiles_info_list+=$'\n##\n'
+
+		i=$(( i + 1 ))
+	done
+
+
+
+	###Generate Scenes Info
+
+	tasker_config_utils_log_literal 1 "\n"
+	tasker_config_utils_log 1 "Generating Scenes Info"
+
+	#if tasker_config_scenes are set
+	IFS=, read -ra tasker_config_scenes_array <<< "$tasker_config_scenes"
+
+	scenes_name_list+=$'\n**Count:** `'"${#tasker_config_scenes_array[@]}"'`'$'\n'
+
+	for scene_name in "${tasker_config_scenes_array[@]}"; do
+
+		tasker_config_utils_log 2 ""
+		tasker_config_utils_log 1 "Processing scene \"$scene_name\""
+
+		scene_name_inline_code="$(convert_string_to_markdown_code "inline-code" "$scene_name")"
+		scenes_name_list+=$'\n'"- *$scene_name_inline_code*"
+	done
+
+
+
+	###Generate Tasks Info
+
+	tasker_config_utils_log_literal 1 "\n"
+	tasker_config_utils_log 1 "Generating Tasks Info"
+
+	IFS=, read -ra exported_tasker_config_task_ids_array <<< "$exported_tasker_config_task_ids"
+
+	tasks_name_list+=$'\n**Count:** `'"${#exported_tasker_config_task_ids_array[@]}"'`'$'\n'
+
+	i=1
+	for task_id in "${exported_tasker_config_task_ids_array[@]}"; do
+
+		tasker_config_utils_log 2 ""
+		tasker_config_utils_log 1 "Processing task \"$task_id\""
+
+		tasker_config_utils_log 2 "Extracting the task name of task $task_id from exported_tasker_config"
+
+		#extract task name of task with id matching task_id
+		task_name="$(tasker_config_utils extract_tag -t --pre_tag='<id>'"$task_id"'<\/id>' --tag='nme' "$exported_tasker_config")"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to get task name of task $task_id from exported_tasker_config"
+			return $return_value
+		fi
+
+		tasks_info_list+=$'\n\n**#:** `'"$i"'`'
+
+		#if task_name is not set
+		if [ -z "$task_name" ] ; then
+			task_name="Anonymous ($task_id)"
+		fi
+
+		task_name_inline_code="$(convert_string_to_markdown_code "inline-code" "$task_name")"
+		tasks_name_list+=$'\n'"- *$task_name_inline_code*"
+		tasks_info_list+=$'\n**Name:** '"$task_name_inline_code"
+
+		tasks_info_list+=$'\n**ID:** `'"$task_id"'`'
+
+		tasker_config_utils_log 2 "Extracting the collision handling value of task $task_id from exported_tasker_config"
+
+		#extract collision handling from the <rty> tag
+		collision_handling_value="$(tasker_config_utils extract_tag -t --tag='rty' --pre_tag='<id>'"$task_id"'<\/id>' "$exported_tasker_config")"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to get collision handling value of task $task_id from exported_tasker_config"
+			return $return_value
+		fi
+
+		#if collision_handling_value is set
+		if [ ! -z "$collision_handling_value" ]; then
+			#if collision_handling_value is not valid
+			if [[ ! "$collision_handling_value" =~ ^[0-2]$ ]]; then
+				tasker_config_utils_log_errors "The collision_handling_value \"$collision_handling_value\" extracted of task $task_id is not a valid value"
+				return 1
+			fi
+
+			if [[ "$collision_handling_value" == "0" ]]; then
+				tasks_info_list+=$'\n**Collision Handling:** `'"Abort New Task"'`'
+			elif [[ "$collision_handling_value" == "1" ]]; then
+				tasks_info_list+=$'\n**Collision Handling:** `'"Abort Existing Task"'`'
+			elif [[ "$collision_handling_value" == "2" ]]; then
+				tasks_info_list+=$'\n**Collision Handling:** `'"Run Both Together"'`'
+			fi
+		else
+			tasks_info_list+=$'\n**Collision Handling:** `'"Abort New Task"'`'
+		fi
+
+
+		tasker_config_utils_log 2 "Extracting the keep device awake value of task $task_id from exported_tasker_config"
+
+		#extract keep device awake from the <stayawake> tag
+		keep_device_awake_value="$(tasker_config_utils extract_tag -t --tag='stayawake' --pre_tag='<id>'"$task_id"'<\/id>' "$exported_tasker_config")"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to get keep device awake value of task $task_id from exported_tasker_config"
+			return $return_value
+		fi
+
+		#if keep_device_awake_value is set
+		if [ ! -z "$keep_device_awake_value" ]; then
+			#if collision_handling_value is not valid
+			if [[ ! "$keep_device_awake_value" =~ ^true|false$ ]]; then
+				tasker_config_utils_log_errors "The keep_device_awake_value \"$keep_device_awake_value\" extracted of task $task_id is not a valid value"
+				return 1
+			fi
+
+			tasks_info_list+=$'\n**Keep Device Awake:** `'"$keep_device_awake_value"'`'
+
+		else
+			tasks_info_list+=$'\n**Keep Device Awake:** `'"false"'`'
+		fi
+
+		tasker_config_utils_log 2 "Extracting help anchor of task $task_id from exported_tasker_config"
+
+		#extract help anchor of task which should be the first action of the task
+		#use -E for extended regex, and -n to disable printing
+		#sed -nE '/^\t<Task sr="[^"]*"[^>]*>$/' #match Task sr line
+		#					{   #if matched start a subscript
+		#					:a;  #create a label called a
+		#					N;   #add next line to pattern space
+		#					#if pattern space does not end with
+		#					/
+		#					\n\t
+		#					(
+		#					#a sr line of a subnode of Task node
+		#					(\t<[a-zA-Z0-9]+ sr="[^"]*"[^>]*>$)
+		#									|
+		#					#or the ending tag of the Task node
+		#					(<\/Task>$)
+		#					)" 
+		#					#go to label a;
+		#					/!ba;
+		#					}'
+		#					#if pattern space matches an id tag matching the task_id
+		#					/.*<id>'"$task_id"'<\/id>.*/
+		#						{   #start another subscript
+		#						:b;  #create a label called b
+		#						N;   #add next line to pattern space
+		#						#if pattern space does not end with "\n\t</Task>$" go to label b;
+		#						/\n\t<\/Task>(\n.*)?$/!bb
+		#						#if pattern space matches
+		#						s/.*\n
+		#						#the opening tag of action 0
+		#						\t\t<Action sr="act0"[^>]*>\n
+		#						#matching an anchor action with code 300
+		#						\t\t\t<code>300<\/code>\n
+		#						#with a label tag containing one or more characters
+		#						\t\t\t<label>([^<]+)<\/label>\n
+		#						#followed by the ending tag of action 0
+		#						\t\t<\/Action>\n\t.*
+		#						#then print matched label text
+		#						/\1/p;
+		#						};'
+		#					}
+		help_anchor="$(sed -nE '/^\t<Task sr="[^"]*"[^>]*>$/{:a;N;/\n\t((\t<[a-zA-Z0-9]+ sr="[^"]*"[^>]*>$)|(<\/Task>$))/!ba;/.*<id>'"$task_id"'<\/id>.*/{:b;N;/\n\t<\/Task>(\n.*)?$/!bb; s/.*\n\t\t<Action sr="act0"[^>]*>\n\t\t\t<code>300<\/code>\n\t\t\t<label>([^<]+)<\/label>\n\t\t<\/Action>\n\t.*/\1/p;};}' "$exported_tasker_config")"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to run sed to extract help anchor of task $task_id from exported_tasker_config"
+			return $return_value
+		fi
+
+		#convert XML special characters to ascii
+		#convert '&amp' -> '&', '&lt' -> '<' and '&gt' -> '>'
+		ascii_help_anchor="$(echo "$help_anchor" | sed -e 's/&amp;/\&/g' -e 's/&lt;/</g' -e 's/&gt;/>/g')"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to run sed to convert help anchor special characters to ascii of task $task_id from exported_tasker_config"
+			return $return_value
+		fi
+
+		#if ascii_help_anchor is set
+		if [ ! -z "$ascii_help_anchor" ]; then
+
+			#if ascii_help_anchor contains a "Comments" section
+			if [[ "$ascii_help_anchor" == *"Comments:"* ]]; then
+				#extract the "Comments" section from the tasks's help anchor
+				#Comments section must be in the format:
+				###
+				#Comments:
+				#"
+				#comment 1
+				#comment 2
+				#"
+				#
+				#
+				###
+				#use -E for extended regex, and -n to disable printing
+				#sed -nE '/^Comments:$/' #match Comments line
+				#					{   #if matched start a subscript
+				#					:a;  #create a label called a
+				#					N;   #add next line to pattern space
+				#					#if pattern space does not end with "\n"\n\n$" go to label a;
+				#					/\n"\n\n$/!ba
+				#					#if pattern space matches "^Comments:\n"(.*)\n"\n\n.*", then print matched group
+				#					s/^Comments:\n"(.*)\n"\n\n.*/\1/p;
+				#					}'
+				ascii_task_comments="$(echo "$ascii_help_anchor" | sed -nE '/^Comments:$/{:a;N;/\n"\n\n[^\n]*$/!ba;s/^Comments:\n"(.*)\n"\n\n.*/\1/p;}')"
+				return_value=$?
+				if [ $return_value -ne 0 ]; then
+					tasker_config_utils_log_errors "Failed to extract task comments of task $task_id from exported_tasker_config"
+					return $return_value
+				fi
+
+				#if ascii_task_comments is set
+				if [ ! -z "$ascii_task_comments" ]; then
+					ascii_task_comments_code_block="$(convert_string_to_markdown_code "code-block" "$ascii_task_comments")"
+					tasks_info_list+=$'\n**Comments:**\n'"$ascii_task_comments_code_block"
+				fi
+			fi
+
+			ascii_help_anchor_code_block="$(convert_string_to_markdown_code "code-block" "$ascii_help_anchor")"
+			tasks_info_list+=$'\n**Help:**\n'"$ascii_help_anchor_code_block"
+		else
+			tasks_info_list+=$'\n**Help:** `-`'
+		fi
+
+		tasks_info_list+=$'\n##\n'
+
+		i=$(( i + 1 ))
+	done
+
+	tasker_config_utils_log_literal 1 "\n"
+	tasker_config_utils_log 1 "Writing All Info To Output File"
+
+	#if generate_config_info_mode is set to "all"
+	if [[ "$generate_config_info_mode" == "all" ]]; then
+		exported_tasker_config_info_name=$(basename "$exported_tasker_config_info" | cut -d '.' -f 1 | sed 's/_/ /')
+		exported_tasker_config_info_output="# $exported_tasker_config_info_name"
+	#if generate_config_info_mode is set to "project"
+	elif [[ "$generate_config_info_mode" == "project" ]]; then
+		exported_tasker_config_info_output="# $project_name"
+	else
+		tasker_config_utils_log_errors "generate_config_info_mode \"$generate_config_info_mode\" not handled"
+		return 1
+	fi
+
+
+
+	###Create project info file at exported_tasker_config_info
+	tasker_config_utils_log_literal 1 "\n"
+	tasker_config_utils_log 1 "Creating project info file at exported_tasker_config_info \"$exported_tasker_config_info\""
+
+	#create exported_tasker_config_info parent directory if it does not exist
+	create_parent_path "$exported_tasker_config_info" "exported_tasker_config_info"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "create_parent_path failed with exit code $return_value"
+		return $return_value
+	fi
+
+	#create empty file at exported_tasker_config_info
+	echo -n "" > "$exported_tasker_config_info"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to create project info file at exported_tasker_config_info \"$exported_tasker_config_info\""
+		return $return_value
+	fi
+
+	#if exported_tasker_config_info file is not found
+	if [ ! -f "$exported_tasker_config_info" ]; then
+		tasker_config_utils_log_errors "Failed to find \"$exported_tasker_config_info\" file"
+		return 1
+	fi
+
+	exported_tasker_config_info_output+="$export_info"
+	exported_tasker_config_info_output+=$'\n\n'
+	exported_tasker_config_info_output+="$profiles_name_list"
+	exported_tasker_config_info_output+=$'\n\n'
+	exported_tasker_config_info_output+="$scenes_name_list"
+	exported_tasker_config_info_output+=$'\n\n'
+	exported_tasker_config_info_output+="$tasks_name_list"
+	exported_tasker_config_info_output+=$'\n\n'
+	exported_tasker_config_info_output+="$profiles_info_list"
+	exported_tasker_config_info_output+=$'\n\n'
+	exported_tasker_config_info_output+="$tasks_info_list"
+
+	echo "$exported_tasker_config_info_output" >> "$exported_tasker_config_info"
+	return_value=$?
+
+	return $return_value
+
+}
+
+#creates a markdown code string by with the necessary number of surrounding backticks depending on the consecutive number of backticks in the string 
+#convert_string_to_markdown_code inline-code|code-block $string
+convert_string_to_markdown_code() {
+
+	local return_value
+
+	#if only 2 parameters not received
+	if [ $# -ne 2 ]; then
+		tasker_config_utils_log_errors "Invalid parameter count to \"convert_string_to_markdown_code\""
+		return 1
+	fi
+
+	local conversion_mode="$1"
+	local string="$2"
+
+	#if conversion_mode is not "inline-code" or "code-block"
+	if [ "$conversion_mode" != "inline-code" ] && [ "$conversion_mode" != "code-block" ]; then
+		tasker_config_utils_log_errors "The conversion_mode parameter passed to \"convert_string_to_markdown_code\" function does not equal \"inline-code\" or \"code-block\""
+		tasker_config_utils_log_errors "conversion_mode = \"$conversion_mode\""
+		return 1
+	fi
+
+	#get max count of consecutive backticks in the string
+	max_consecutive_backticks_count="$(echo "$string" | grep -oE '`+' | awk '{ print length}' | sort -nr | head -n 1)"
+	return_value=$?
+	#if return_value is not "0" or max_consecutive_backticks_count is set but is not valid
+	if [ $return_value -ne 0 ] || ([ ! -z "$max_consecutive_backticks_count" ] && [[ ! "$max_consecutive_backticks_count" =~ $valid_number_regex ]];); then
+		tasker_config_utils_log_errors "Failure while getting max_consecutive_backticks_count from string"
+		tasker_config_utils_log_errors "string = \"$string\""
+		return $return_value
+	fi
+
+	#if max_consecutive_backticks_count is not set, set it to 0
+	if [ -z "$max_consecutive_backticks_count" ]; then
+		max_consecutive_backticks_count=0
+	fi
+
+	#markdown requires surrounding backticks count to be atleast one more than the count of consecutive ticks in the string itself
+	#if conversion_mode "inline-code"
+	if [ "$conversion_mode" == "inline-code" ]; then
+		backticks_count_to_print="$((max_consecutive_backticks_count + 1))"
+	#if conversion_mode "code-block"	
+	else
+		backticks_count_to_print="$((max_consecutive_backticks_count + 3))"
+	fi
+
+	#create a string with n backticks where n==backticks_count_to_print 
+	backticks_to_print="$(printf '%0.s`' $(seq 1 $backticks_count_to_print))"
+
+	#if conversion_mode "inline-code"
+	if [ "$conversion_mode" == "inline-code" ]; then
+		#add a space to any prefixed or suffixed backtick characters
+		backtick='`'
+		string="${string/#$backtick/ $backtick}"
+		string="${string/%$backtick/$backtick }"
+
+		#echo string to stdout as an inline-code
+		echo "${backticks_to_print}${string}${backticks_to_print}"
+	#if conversion_mode "code-block"	
+	else
+		#echo string to stdout as an code-block
+		echo "${backticks_to_print}"$'\n'"${string}"$'\n'"${backticks_to_print}"
+	fi
+	return_value=$?
+
+	return $return_value
+
+}
+
+#create_parent_path $path $path_label
+create_parent_path () {
+
+	local return_value
+
+	#if only 2 parameters not received
+	if [ $# -ne 2 ]; then
+		tasker_config_utils_log_errors "Invalid parameter count to \"create_parent_path\""
+		return 1
+	fi
+
+	local path="$1"
+	local path_label="$2"
+
+	#find path_parent
+	path_parent=$(dirname "$path")
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failure while finding dirname for $path_label \"$path\""
+		return $return_value
+	fi
+
+	#if path_parent exists and is not a directory
+	if [ -e "$path_parent" ] && [ ! -d "$path_parent" ]; then
+		tasker_config_utils_log_errors "A non-directory file exists at parent path \"$path_parent\" of $path_label \"$path\""
+		return 1
+	fi
+
+	#create path_parent if it does not exist
+	if [ ! -d "$path_parent" ]; then
+		mkdir -p "$path_parent"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to create parent directory of $path_label \"$path\""
+			return $return_value
+		fi
+	fi
+
+	return 0
+
+}
+
+tasker_config_utils_make_script_executable_and_add_to_path() {
+
+	local return_value
+
+	#if only 1 parameter not received
+	if [ $# -ne 1 ]; then
+		tasker_config_utils_log_errors "Invalid parameter count to \"tasker_config_utils_make_script_executable_and_add_to_path\""
+		return 1
+	fi
+
+	local script="$1"
+
+	#if script file is not set
+	if [ -z "$script" ]; then
+		tasker_config_utils_log_arg_errors "The script \"$script\" passed to \"tasker_config_utils_make_script_executable_and_add_to_path\" function is not set"
+		return 1
+	fi
+
+	#find real path of script
+	script_path="$(readlink -f "$script")"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to find real path of script \"$script\""
+		return $return_value
+	fi
+
+	#if script exists at script_path
+	if [[ -f "$script_path" ]]; then
+		#if script is not executable, then make it executable
+		if [[ ! -x "$script_path" ]]; then
+			chmod +x "$script_path"
+			return_value=$?
+			if [ $return_value -ne 0 ]; then
+				tasker_config_utils_log_errors "Failed to set executable permission to script at \"$script_path\""
+				return $return_value
+			fi
+		fi
+
+		#find parent directory of script
+		script_directory="$(dirname "$script_path")"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to find parent directory of script at \"$script_path\""
+			return $return_value
+		fi
+
+		#check if script_directory is valid
+		if [[ "$script_directory" == *:* ]]; then
+			tasker_config_utils_log_errors "The parent directory of script at \"$script_path\" is invalid, since it contains a colon \":\""
+			return 1
+		fi
+
+		#add script parent directory to PATH
+		export PATH="$PATH:$script_directory"
+
+		#tasker_config_utils_log 0 "$PATH"
+	fi
+
+	return 0
+
+}
+
+process_tasker_config_utils_parameters () {
+
+	#parse options to tasker_config_utils command
+	while getopts ":h-:" opt; do
+		case ${opt} in
+			-)
+				case "${OPTARG}" in
+					help)
+						tasker_config_utils_log_args "Parsing option: '--${OPTARG%=*}'"
+						show_tasker_config_utils_help
+						$tasker_config_utils_exit_command 0
+						;;
+					help*)
+						tasker_config_utils_log_arg_errors "Invalid option or parameters not allowed for option: '--${OPTARG%=*}'"
+						exit_tasker_config_utils_on_error
+						;;
+					version)
+						tasker_config_utils_log_args "Parsing option: '--${OPTARG%=*}'"
+						echo "$version"
+						$tasker_config_utils_exit_command 0
+						;;
+					version*)
+						tasker_config_utils_log_arg_errors "Invalid option or parameters not allowed for option: '--${OPTARG%=*}'"
+						exit_tasker_config_utils_on_error
+						;;
+					*)
+						tasker_config_utils_log_arg_errors "Unknown option '--${OPTARG%=*}'"
+						exit_tasker_config_utils_on_error
+						;;
+				esac
+				;;
+			h)
+				tasker_config_utils_log_args "Parsing option: '-${opt}'"
+				show_tasker_config_utils_help
+				$tasker_config_utils_exit_command 0
+				;;
+			\?)
+				tasker_config_utils_log_arg_errors "Unknown option: '-${OPTARG}'"
+				exit_tasker_config_utils_on_error
+				;;
+		esac
+	done
+	shift $((OPTIND -1)) #remove already processed arguments from argument list
+
+	sub_command=$1; shift  #remove sub_command from the argument list
+	#echo $sub_command
+	case "$sub_command" in
+		#parse options to the extract_tag sub command
+		extract_tag)
+			command_type="$sub_command"
+			tasker_config_utils_log_args "Parsing sub_command: '${sub_command}'"
+			optspec=":hvaepst-:"
+			#process extract_tag command options
+			while getopts "$optspec" opt; do
+				case ${opt} in
+					-)
+						long_optargs="${OPTARG#*=}"
+						case "${OPTARG}" in
+							help)
+								tasker_config_utils_log_args "Parsing option: '--${OPTARG%=*}'"
+								show_tasker_config_utils_"$command_type"_help
+								$tasker_config_utils_exit_command 0
+								;;
+							help*)
+								tasker_config_utils_log_arg_errors "Invalid option or parameters not allowed for option: '--${OPTARG%=*}'"
+								exit_tasker_config_utils_on_error "$command_type"
+								;;
+							node=?*)
+								val="$long_optargs"
+								tasker_config_utils_log_args "Parsing option: '--${OPTARG%=*}', value: '${val}'"
+								extraction_node="$(echo "$val")" #remove trailing newlines
+								;;
+							node | node=)
+								tasker_config_utils_log_arg_errors "No parameters set for option: '--${OPTARG%=*}'"
+								exit_tasker_config_utils_on_error "$command_type"
+								;;	
+							tag=?*)
+								val="$long_optargs"
+								tasker_config_utils_log_args "Parsing option: '--${OPTARG%=*}', value: '${val}'"
+								extraction_tag="$(echo "$val")" #remove trailing newlines
+								;;
+							tag | tag=)
+								tasker_config_utils_log_arg_errors "No parameters set for option: '--${OPTARG%=*}'"
+								exit_tasker_config_utils_on_error "$command_type"
+								;;		
+							pre_tag=?*)
+								val="$long_optargs"
+								tasker_config_utils_log_args "Parsing option: '--${OPTARG%=*}', value: '${val}'"
+								pre_tag="$(echo "$val")" #remove trailing newlines
+								;;
+							pre_tag | pre_tag=)
+								tasker_config_utils_log_arg_errors "No parameters set for option: '--${OPTARG%=*}'"
+								exit_tasker_config_utils_on_error "$command_type"
+								;;		
+							post_tag=?*)
+								val="$long_optargs"
+								tasker_config_utils_log_args "Parsing option: '--${OPTARG%=*}', value: '${val}'"
+								post_tag="$(echo "$val")" #remove trailing newlines
+								;;
+							post_tag | post_tag=)
+								tasker_config_utils_log_arg_errors "No parameters set for option: '--${OPTARG%=*}'"
+								exit_tasker_config_utils_on_error "$command_type"
+								;;		
+							'' ) #"--" terminates argument processing to support non-options that extract_tag with dashes
+								tasker_config_utils_log_args "Parsing option: '--'"
+								break 
+								;; 
+							*)
+								tasker_config_utils_log_arg_errors "Unknown option '--${OPTARG%=*}'"
+								exit_tasker_config_utils_on_error "$command_type"
+								;;
+						esac
+						;;
+					h)
+						tasker_config_utils_log_args "Parsing option: '-${opt}'"
+						show_tasker_config_utils_"$command_type"_help
+						$tasker_config_utils_exit_command 0
+						;;
+					v)
+						tasker_config_utils_log_args "Parsing option: '-${opt}'"
+						if [ "$tasker_config_utils_verbose_level" -lt "2" ]; then 
+							tasker_config_utils_verbose_level=$((tasker_config_utils_verbose_level+1)); 
+						else 
+							tasker_config_utils_log_arg_errors "Invalid Option, max verbose level is 2"
+							exit_tasker_config_utils_on_error "$command_type" 
+						fi 
+						;;
+					a)
+						tasker_config_utils_log_args "Parsing option: '-${opt}'"
+						extraction_node="Project"
+						;;
+					e)
+						tasker_config_utils_log_args "Parsing option: '-${opt}'"
+						extract_tags_from_entire_node=1
+						;;	
+					p)
+						tasker_config_utils_log_args "Parsing option: '-${opt}'"
+						extraction_node="Profile"
+						;;
+					s)
+						tasker_config_utils_log_args "Parsing option: '-${opt}'"
+						extraction_node="Scene"
+						;;		
+					t)
+						tasker_config_utils_log_args "Parsing option: '-${opt}'"
+						extraction_node="Task"
+						;;	
+					\?)
+						tasker_config_utils_log_arg_errors "Unknown option: '-${OPTARG}'"
+						exit_tasker_config_utils_on_error "$command_type"
+						;;
+				esac
+			done
+			shift $((OPTIND -1)) #remove already processed arguments from argument list
+
+			#if extraction_node is not set or passed
+			if [ -z "$extraction_node" ]; then
+				tasker_config_utils_log_arg_errors "The '-a', '-p', '-s' or the '-t' option must be passed to set the extraction mode"
+				$tasker_config_utils_exit_command 1
+			fi
+
+			#if no arg passed
+			if [ $# -eq 0 ]; then
+				show_tasker_config_utils_"$command_type"_help
+				$tasker_config_utils_exit_command 0
+			#if only 1 arg: tasker_config
+			elif [ $# -eq 1 ]; then
+				tasker_config="$(echo "$1")" #remove trailing newlines
+			else
+				tasker_config_utils_log_arg_errors "Invalid number of args passed. \"tasker_config_utils extract_tag\" command expects 1 arg: tasker_config"
+				$tasker_config_utils_exit_command 1
+			fi
+
+			shift $# #remove all remaining arguments from argument list
+			;;
+		#parse options to the convert_project sub command
+		convert_project)
+			command_type="$sub_command"
+			tasker_config_utils_log_args "Parsing sub_command: '${sub_command}'"
+			optspec=":hv-:"
+			#process convert_project command options
+			while getopts "$optspec" opt; do
+				case ${opt} in
+					-)
+						long_optargs="${OPTARG#*=}"
+						case "${OPTARG}" in
+							help)
+								tasker_config_utils_log_args "Parsing option: '--${OPTARG%=*}'"
+								show_tasker_config_utils_"$command_type"_help
+								$tasker_config_utils_exit_command 0
+								;;
+							help*)
+								tasker_config_utils_log_arg_errors "Invalid option or parameters not allowed for option: '--${OPTARG%=*}'"
+								exit_tasker_config_utils_on_error "$command_type"
+								;;
+							'' ) #"--" terminates argument processing to support non-options that convert_project with dashes
+								tasker_config_utils_log_args "Parsing option: '--'"
+								break 
+								;; 
+							*)
+								tasker_config_utils_log_arg_errors "Unknown option '--${OPTARG%=*}'"
+								exit_tasker_config_utils_on_error "$command_type"
+								;;
+						esac
+						;;
+					h)
+						tasker_config_utils_log_args "Parsing option: '-${opt}'"
+						show_tasker_config_utils_"$command_type"_help
+						$tasker_config_utils_exit_command 0
+						;;
+					v)
+						tasker_config_utils_log_args "Parsing option: '-${opt}'"
+						if [ "$tasker_config_utils_verbose_level" -lt "2" ]; then 
+							tasker_config_utils_verbose_level=$((tasker_config_utils_verbose_level+1)); 
+						else 
+							tasker_config_utils_log_arg_errors "Invalid Option, max verbose level is 2"
+							exit_tasker_config_utils_on_error "$command_type"
+						fi 
+						;;	
+					\?)
+						tasker_config_utils_log_arg_errors "Unknown option: '-${OPTARG}'"
+						exit_tasker_config_utils_on_error "$command_type"
+						;;
+				esac
+			done
+			shift $((OPTIND -1)) #remove already processed arguments from argument list
+
+			#if no arg passed
+			if [ $# -eq 0 ]; then
+				show_tasker_config_utils_"$command_type"_help
+				$tasker_config_utils_exit_command 0
+			#if only 4 arg: tasker_config, current_exported_tasker_project, new_exported_tasker_project and project_name
+			elif [ $# -eq 4 ]; then
+				tasker_config="$(echo "$1")" #remove trailing newlines
+				current_exported_tasker_project="$(echo "$2")" #remove trailing newlines
+				new_exported_tasker_project="$(echo "$3")" #remove trailing newlines
+				project_name="$(echo "$4")" #remove trailing newlines
+			else
+				tasker_config_utils_log_arg_errors "Invalid number of args passed. \"tasker_config_utils convert_project\" command expects 4 arg: tasker_config, current_exported_tasker_project, new_exported_tasker_project and project_name"
+				$tasker_config_utils_exit_command 1
+			fi
+
+			shift $# #remove all remaining arguments from argument list
+			;;
+		#parse options to the generate_config_info sub command
+		generate_config_info)
+			command_type="$sub_command"
+			tasker_config_utils_log_args "Parsing sub_command: '${sub_command}'"
+			optspec=":hvap-:"
+			#process generate_config_info command options
+			while getopts "$optspec" opt; do
+				case ${opt} in
+					-)
+						long_optargs="${OPTARG#*=}"
+						case "${OPTARG}" in
+							help)
+								tasker_config_utils_log_args "Parsing option: '--${OPTARG%=*}'"
+								show_tasker_config_utils_"$command_type"_help
+								$tasker_config_utils_exit_command 0
+								;;
+							help*)
+								tasker_config_utils_log_arg_errors "Invalid option or parameters not allowed for option: '--${OPTARG%=*}'"
+								exit_tasker_config_utils_on_error "$command_type"
+								;;
+							'' ) #"--" terminates argument processing to support non-options that generate_config_info with dashes
+								tasker_config_utils_log_args "Parsing option: '--'"
+								break 
+								;; 
+							*)
+								tasker_config_utils_log_arg_errors "Unknown option '--${OPTARG%=*}'"
+								exit_tasker_config_utils_on_error "$command_type"
+								;;
+						esac
+						;;
+					h)
+						tasker_config_utils_log_args "Parsing option: '-${opt}'"
+						show_tasker_config_utils_"$command_type"_help
+						$tasker_config_utils_exit_command 0
+						;;
+					v)
+						tasker_config_utils_log_args "Parsing option: '-${opt}'"
+						if [ "$tasker_config_utils_verbose_level" -lt "2" ]; then 
+							tasker_config_utils_verbose_level=$((tasker_config_utils_verbose_level+1)); 
+						else 
+							tasker_config_utils_log_arg_errors "Invalid Option, max verbose level is 2"
+							exit_tasker_config_utils_on_error "$command_type"
+						fi 
+						;;
+					a)
+						tasker_config_utils_log_args "Parsing option: '-${opt}'"
+						generate_config_info_mode="all"
+						;;
+					p)
+						tasker_config_utils_log_args "Parsing option: '-${opt}'"
+						generate_config_info_mode="project"
+						;;
+					\?)
+						tasker_config_utils_log_arg_errors "Unknown option: '-${OPTARG}'"
+						exit_tasker_config_utils_on_error "$command_type"
+						;;
+				esac
+			done
+			shift $((OPTIND -1)) #remove already processed arguments from argument list
+
+			#if generate_config_info_mode is not set or passed
+			if [ -z "$generate_config_info_mode" ]; then
+				tasker_config_utils_log_arg_errors "The '-a' or the '-p' option must be passed to set the generate config info mode"
+				$tasker_config_utils_exit_command 1
+			fi
+
+			#if generate_config_info_mode is set to "all", then only 2 arg, exported_tasker_config and exported_tasker_config_info should have been passed
+			if [[ "$generate_config_info_mode" == "all" ]]; then
+				if [ $# -eq 2 ]; then
+					exported_tasker_config="$(echo "$1")" #remove trailing newlines
+					exported_tasker_config_info="$(echo "$2")" #remove trailing newlines
+
+					tasker_config_utils_log 2 "exported_tasker_config = \"$exported_tasker_config\""
+					tasker_config_utils_log 2 "exported_tasker_config_info = \"$exported_tasker_config_info\""
+				else
+					tasker_config_utils_log_arg_errors "Invalid number of args passed. \"tasker_config_utils generate_config_info\" command expects 2 args if generate_config_info_mode is \"all\": exported_tasker_config and exported_tasker_config_info"
+					$tasker_config_utils_exit_command 1
+				fi
+			#if generate_config_info_mode is set to "project", then only 3 args, exported_tasker_config, exported_tasker_config_info and project_name should have been passed
+			elif [[ "$generate_config_info_mode" == "project" ]]; then
+				if [ $# -eq 3 ]; then
+					exported_tasker_config="$(echo "$1")" #remove trailing newlines
+					exported_tasker_config_info="$(echo "$2")" #remove trailing newlines
+					project_name="$(echo "$3")" #remove trailing newlines
+
+					tasker_config_utils_log 2 "exported_tasker_config = \"$exported_tasker_config\""
+					tasker_config_utils_log 2 "exported_tasker_config_info = \"$exported_tasker_config_info\""
+					tasker_config_utils_log 2 "project_name = \"$project_name\""
+				else
+					tasker_config_utils_log_arg_errors "Invalid number of args passed. \"tasker_config_utils generate_config_info\" command expects 3 args if generate_config_info_mode is \"project\": exported_tasker_config, exported_tasker_config_info and project_name"
+					$tasker_config_utils_exit_command 1
+				fi
+
+			else
+				tasker_config_utils_log_arg_errors "generate_config_info_mode \"$generate_config_info_mode\" not handled"
+				$tasker_config_utils_exit_command 1
+			fi
+
+			shift $# #remove all remaining arguments from argument list
+			;;	
+		*)	
+			if [ ! -z "$sub_command" ]; then
+				tasker_config_utils_log_arg_errors "Unknown command type: '$sub_command'"
+			fi
+			exit_tasker_config_utils_on_error
+			;;
+	esac
+
+	#if a non-option argument is given to a sub_command
+	if [ $# -ne 0 ]; then
+		tasker_config_utils_log_arg_errors "Unknown option to \"$command_type\": '$1'"
+		$tasker_config_utils_exit_command 1
+	fi
+
+}
+
+show_tasker_config_utils_help () {
+
+echo "
+Usage:
+  tasker_config_utils [ -h | --help ]
+  tasker_config_utils [ --version ]
+  tasker_config_utils command [command_options]
+
+Available commands:
+  extract_tag      extract tags from tasker config
+  convert_project  convert project into a non-standalone project
+  generate_config_info  convert project into a non-standalone project
+
+
+Use \"tasker_config_utils command [ -h | --help ]\" for more help about a command.
+"
+
+}
+
+show_tasker_config_utils_extract_tag_help () {
+
+echo "
+tasker_config_utils extract_tag command is used to extract tags of nodes from a tasker config file.
+
+
+Usage:
+  tasker_config_utils extract_tag [command_options] tasker_config
+
+Available command_options:
+  [ -h | --help ]    display this help screen
+  [ -v | -vv ]       set verbose level to 1 or 2
+  [ -a ]             extract Project node tag
+  [ -e ]             extract tags from entire node
+  [ -p ]             extract Profile node tag
+  [ -s ]             extract Task node tag
+  [ -t ]             extract Scene node tag
+  [ --node=<node> ]
+                     optional node to extract
+  [ --tag=<tag> ]
+                     optional tag to extract
+  [ --pre_tag=<tag> ]
+                     optional pre tag sed regex to match while extracting tag
+  [ --post_tag=<tag> ]
+                     optional post tag sed regex to match while extracting tag
+
+tasker_config should be the path to a Tasker \"Data Backup\" XML file. It passed must be an exported \
+\"Data Backup\" and not an auto backup.
+
+The options '-a', '-p', '-s', '-t' and '--node' set the extraction_node of the extract_tag command. \
+One of them must be passed.
+
+For the option '-a', the default tag is 'name'. For all others, the default tag is 'nme'.
+
+By default tags will only be extracted from the node itself and not any of its sub nodes. Multi-line tags \
+can be extracted. However, this only allows the first tag of the same type to be extracted from each node. 
+
+The '-e' option can be passed to extract tags from the node and its sub nodes. Only single line tags can \
+be extracted. However, this allows multiple tags of the same type to be extracted from each node.
+
+set verbose level to 1 or 2 to get more info when running tasker_config_utils extract_tag command.
+"
+
+}
+
+show_tasker_config_utils_convert_project_help () {
+
+echo "
+tasker_config_utils convert_project command is used to convert a project into a non-standalone project \
+so that it does not have profiles, scenes and tasks that were originally not in the project in the \
+tasker_config. tasker_config must be an exported data backup and not an auto backup.
+
+
+Usage:
+  tasker_config_utils convert_project [command_options] tasker_config current_exported_tasker_project new_exported_tasker_project project_name
+
+Available command_options:
+  [ -h | --help ]    display this help screen
+  [ -v | -vv ]       set verbose level to 1 or 2
+
+
+tasker_config should be the path to a Tasker \"Data Backup\" XML file. It passed must be an exported \
+\"Data Backup\" and not an auto backup.
+
+current_exported_tasker_project should be the path to a Tasker exported \"Project\" XML file that needs to \
+be converted. It must have been exported from Tasker with a config that is the same as the tasker_config file.
+
+new_exported_tasker_project should be the path to the output \"Project\" XML file.
+
+project_name should be the Tasker project name which was exported to current_exported_tasker_project. Its \
+project node must exist inside both the tasker_config and current_exported_tasker_project files. Its \
+Project node in the current_exported_tasker_project should also have a 'sr' value of 'proj0'.
+
+
+Example Usage:
+Create a Tasker \"Data Backup\". Example: \"config.xml\".
+Export Tasker \"Foo Bar\" Project. It should by default be exported to \"Foo_Bar.prf.xml\".
+Place both files in same folder and run following command:
+	tasker_config_utils convert_project -v \"config.xml\" \"Foo_Bar.prf.xml\" \"Foo_Bar-out.prf.xml\" \"Foo Bar\"
+
+Optionally use the \"Convert Tasker Project File To Non-Standalone Project File\" task from the \"Tasker Config Utils\" project.
+
+set verbose level to 1 or 2 to get more info when running tasker_config_utils convert_project command.
+"
+
+}
+
+show_tasker_config_utils_generate_config_info_help () {
+
+echo "
+tasker_config_utils generate_config_info command is used to generate a markdown config info file for a given Tasker XML file.
+
+Generated config info file will contain:
+1) Export info like tasker version and timestamp.
+2) Names of all profiles, scenes and tasks in the project.
+3) Profiles Info like their settings, entry and exit tasks, etc.
+4) Tasks Info like their settings, the label of the first action of the task if its an anchor action as help, etc.
+
+Usage:
+  tasker_config_utils generate_config_info [command_options] -a exported_tasker_config exported_tasker_config_info
+  tasker_config_utils generate_config_info [command_options] -p exported_tasker_config exported_tasker_config_info project_name
+
+Available command_options:
+  [ -h | --help ]    display this help screen
+  [ -v | -vv ]       set verbose level to 1 or 2
+  [ -a ]             extract all info
+  [ -p ]             extract info of a specific project
+
+The options '-a' and '-p' set the generate_config_info_mode of the generate_config_info command. One of \
+them must be passed. 
+
+The '-a' option sets the generate_config_info_mode to \"all\" mode. If this is passed, \
+then exported_tasker_config can be any type of exported Tasker XML file like a \"Data Backup\", 
+\"Profile\", \"Project\", \"Task\" or a \"Scene\" XML file of which config info needs to be generated. \
+The info of all profiles, scenes and tasks inside the file will be generated. This is likely \
+to take some time depending on XML file size.
+
+The '-p' option sets the generate_config_info_mode to \"project\" mode. If this is passed, then \
+exported_tasker_config should be the path to a Tasker exported \"Project\" XML file of which the \
+project info needs to be generated. You may optionally pass a Tasker \"Data Backup\" XML file instead. \
+Only the info of profiles, scenes and tasks belonging to the project will be generated. The project_name \
+should be the Tasker project name which was exported to current_exported_tasker_config. Its \
+project node must exist inside the exported_tasker_config file.
+
+exported_tasker_config_info should be the path to the output project info markdown file.
+
+
+Example Usage 1:
+Create a Tasker \"Data Backup\". Example: \"config.xml\".
+Run following command:
+	tasker_config_utils generate_config_info -v -a \"config.xml\" \"config.md\"
+
+Example Usage 2:
+Export Tasker \"Foo Bar\" Project. It should by default be exported to \"Foo_Bar.prf.xml\".
+Run following command:
+	tasker_config_utils generate_config_info -v -p \"Foo_Bar.prf.xml\" \"Foo_Bar-out.prf.md\" \"Foo Bar\"
+
+Optionally use the \"Convert Tasker Project File To Non-Standalone Project File\" task from the \"Tasker Config Utils\" project.
+
+set verbose level to 1 or 2 to get more info when running tasker_config_utils generate_config_info command.
+"
+
+}
+
+exit_tasker_config_utils_on_error () {
+
+	if [ ! -z "$1" ] && [[ "$1" != *,* ]] && [[ ",extract_tag,convert_project,generate_config_info," == *",$1,"* ]]; then
+		show_tasker_config_utils_"$1"_help
+	else
+		show_tasker_config_utils_help
+	fi
+	$tasker_config_utils_exit_command 1
+
+}
+
+#run tasker_config_utils_main function
+[[ x"${BASH_SOURCE[0]}" == x"$0" ]] && tasker_config_utils_main "$@"; $tasker_config_utils_exit_command 0;
