@@ -302,30 +302,40 @@ You may optionally run the script placed in the current directory without settin
 
 
 
-## Tasker Export Types:
+## Tasker XML Export Types:
 
-Tasker supports 4 types of exports.
+Tasker supports 4 types of XML exports.
 
 - **`Data Backup`**
-	It contains the entire tasker config with all profiles, scenes and tasks.
-	*XML file suffix:* `.xml`
-	*Import Instructions:* `Tasker Options` -> `Data` -> `Restore` -> `User Local Backup`
+	It contains the entire tasker config with all profiles, scenes and tasks. 
+	*XML file suffix:* `.xml` 
+	*Import Instructions:* `Tasker Options In Tasker Home Screen` -> `Data` -> `Restore` -> `User Local Backup` 
+	*Export Instructions 1:* `Tasker Options In Tasker Home Screen` -> `Data` -> `Backup`
+	*Export Instructions 2:* Tasker Task Action  `Tasker` -> `Data Backup`
+
 - **`Project`**
 	It contains all profiles, scenes and tasks that are referenced in the project that is exported from the tasker config. Basically if you are exporting project 1, then the exported XML file will contain all profiles, scenes and tasks that are inside project 1 in the tasker config. Additionally, it will also contains profiles, scenes and tasks from projects other than project 1 that are referred or called by project 1 in some way. This automatically creates a standalone project file and does not require the users to export/import multiple projects. Tasker exports everything that is required for a user to run the project.
-	*XML file suffix:* `.prj.xml`
-	*Import Instructions:* `Long Press Anywhere On Bottom Nav Bar` -> `Import Project`
+	*XML file suffix:* `.prj.xml` 
+	*Import Instructions:* `Long Press Anywhere On Bottom Nav Bar` -> `Import Project` 
+	*Export Instructions:* `Long Press On The <Project Name> Tab In Bottom Nav Bar` -> `Export` -> `XML to Storage` 
+
 - **`Profile`**
 	It contains the profile and all tasks that are referenced in the profile that is exported from the tasker config. This will also export anonymous tasks of the profile that are not named and contain only an id in the tasker config, like for example the entry and exit tasks which were created without naming them. Note the `Optional` when you select `New Task` will creating a profile.
-	*XML file suffix:* `.prf.xml`
-	*Import Instructions:* `Long Press PROFILES Tab In Top Nav Bar` -> `Import Profile`
+	*XML file suffix:* `.prf.xml` 
+	*Import Instructions:* `Long Press PROFILES Tab In Top Nav Bar` -> `Import Profile` 
+	*Export Instructions:* `Long Press On The <Profile Name> In the PROFILES Tab` -> `Tasker Options` -> `Export` -> `XML to Storage` 
+
 - **`Scene`**
 	It contains the scene and all tasks that are referenced in the scene that is exported from the tasker config. This will also export anonymous tasks of the scene and sub scenes that are not named and contain only an id in the tasker config. The key and element tasks of the scenes are anonymous tasks.
-	*XML file suffix:* `.scn.xml`
-	*Import Instructions:* `Long Press SCENES Tab In Top Nav Bar` -> `Import One Scene`
+	*XML file suffix:* `.scn.xml` 
+	*Import Instructions:* `Long Press SCENES Tab In Top Nav Bar` -> `Import One Scene` 
+	*Export Instructions:* `Long Press On The <Scene Name> In the SCENES Tab` -> `Tasker Options` -> `Export` -> `XML to Storage` 
+
 - **`Task`**
 	It contains only the task that is exported from the tasker config.
-	*XML file suffix:* `.tsk.xml`
-	*Import Instructions:* `Long Press TASKS Tab In Top Nav Bar` -> `Import Task`
+	*XML file suffix:* `.tsk.xml` 
+	*Import Instructions:* `Long Press TASKS Tab In Top Nav Bar` -> `Import Task` 
+	*Export Instructions:* `Long Press On The <Task Name> In the TASKS Tab` -> `Tasker Options` -> `Export` -> `XML to Storage` 
 
 If the profile, scene or task XML file does not have the correct suffix, it will not be displayed in the import menu by Tasker.
 
