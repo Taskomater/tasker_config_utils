@@ -1174,22 +1174,22 @@ tasker_config_utils_generate_config_info() {
 		#					#if pattern space matches ".*<name>'"$sed_formatted_project_name"'<\/name>.*", then print pattern space
 		#					/.*<name>'"$sed_formatted_project_name"'<\/name>.*/p;
 		#					}'
-		exported_tasker_config_node="$(sed -nE '/^\t<Project sr="[^"]*"[^>]*>$/{:a;N;/\n\t<\/Project>$/!ba;/.*<name>'"$sed_formatted_project_name"'<\/name>.*/p;}' "$exported_tasker_config")"
+		exported_tasker_config_project_node="$(sed -nE '/^\t<Project sr="[^"]*"[^>]*>$/{:a;N;/\n\t<\/Project>$/!ba;/.*<name>'"$sed_formatted_project_name"'<\/name>.*/p;}' "$exported_tasker_config")"
 		return_value=$?
 		if [ $return_value -ne 0 ]; then
 			tasker_config_utils_log_errors "Failed to run sed to extract the \"$project_name\" project node from exported_tasker_config"
 			return $return_value
 		fi
 
-		#if exported_tasker_config_node file is empty
-		if [ -z "$exported_tasker_config_node" ]; then
+		#if exported_tasker_config_project_node file is empty
+		if [ -z "$exported_tasker_config_project_node" ]; then
 			tasker_config_utils_log_arg_errors "Failed to find project_name \"$project_name\" in exported_tasker_config \"$exported_tasker_config\""
 			return 1
 		fi
 
-		tasker_config_utils_log_literal 2 "\n\nexported_tasker_config_node:"
+		tasker_config_utils_log_literal 2 "\n\nexported_tasker_config_project_node:"
 		tasker_config_utils_log_literal 2 "\""
-		tasker_config_utils_log 2 "$exported_tasker_config_node"
+		tasker_config_utils_log 2 "$exported_tasker_config_project_node"
 		tasker_config_utils_log_literal 2 "\"\n\n"
 	fi
 
@@ -1223,7 +1223,7 @@ tasker_config_utils_generate_config_info() {
 		tasker_config_utils_log 1 "Extracting the profile ids of \"$project_name\" project from the exported_tasker_config file"
 
 		#extract the <pids> tag value from the project_name project node extracted from the exported_tasker_config
-		exported_tasker_config_profile_ids="$(echo "$exported_tasker_config_node" | sed -nzE 's/.*<pids>(.*)<\/pids>.*/\1/p;')"
+		exported_tasker_config_profile_ids="$(echo "$exported_tasker_config_project_node" | sed -nzE 's/.*<pids>(.*)<\/pids>.*/\1/p;')"
 		return_value=$?
 		if [ $return_value -ne 0 ]; then
 			tasker_config_utils_log_errors "Failed to extract profile ids of \"$project_name\" from exported_tasker_config"
@@ -1275,7 +1275,7 @@ tasker_config_utils_generate_config_info() {
 		tasker_config_utils_log 1 "Extracting the scene names of \"$project_name\" project from the exported_tasker_config file"
 
 		#extract the <scenes> tag value from the project_name project node extracted from the exported_tasker_config
-		tasker_config_scenes="$(echo "$exported_tasker_config_node" | sed -nzE 's/.*<scenes>(.*)<\/scenes>.*/\1/p;')"
+		tasker_config_scenes="$(echo "$exported_tasker_config_project_node" | sed -nzE 's/.*<scenes>(.*)<\/scenes>.*/\1/p;')"
 		return_value=$?
 		if [ $return_value -ne 0 ]; then
 			tasker_config_utils_log_errors "Failed to extract scenes of \"$project_name\" from exported_tasker_config"
@@ -1327,7 +1327,7 @@ tasker_config_utils_generate_config_info() {
 		tasker_config_utils_log 1 "Extracting the task ids of \"$project_name\" project from the tasker_config file"
 
 		#extract the <tids> tag value from the project_name project node extracted from the exported_tasker_config
-		exported_tasker_config_task_ids="$(echo "$exported_tasker_config_node" | sed -nzE 's/.*<tids>(.*)<\/tids>.*/\1/p;')"
+		exported_tasker_config_task_ids="$(echo "$exported_tasker_config_project_node" | sed -nzE 's/.*<tids>(.*)<\/tids>.*/\1/p;')"
 		return_value=$?
 		if [ $return_value -ne 0 ]; then
 			tasker_config_utils_log_errors "Failed to extract task ids of \"$project_name\" from exported_tasker_config"
