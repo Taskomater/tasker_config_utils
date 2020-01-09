@@ -1,18 +1,63 @@
 # Tasker Config Utils
 
 This is a project to provide guidance on how Tasker App XML files work and provides a script with some utils to extract information and modify Tasker App XML files.
-
-### Downloads
-Download latest release from [here](https://github.com/Taskomater/Tasker-Config-Utils/releases).
 ##
 
 
-### **`tasker_config_utils script:`**
+### Contents:
+- [Dependencies](#Dependencies)
+- [Downloads](#Downloads)
+- [Install Instructions For Termux In Android](#Install-Instructions-For-Termux-In-Android)
+- [tasker_config_utils Script Usage](#tasker_config_utils-Script-Usage)
+- [Tasker XML File Structure](#Tasker-XML-File-Structure)
+##
 
-You can run the script placed in the current directory without setting the ownership and permission by running the command `bash tasker_config_utils`.
+
+### Dependencies:
+
+You should have GNU sed installed in your system.
+- Termux (non-root shell): `apt install sed`
+- Linux distros: `sudo apt install sed`
+- Windows: You can use cygwin installer.
+##
+
+
+### Downloads:
+Download `Tasker Config Utils` latest release from [here](https://github.com/Taskomater/Tasker-Config-Utils/releases).
+##
+
+
+### Install Instructions For Termux In Android:
+
+The `tasker_config_utils` file should be placed in termux `bin` directory `/data/data/com.termux/files/usr/bin` and it should have `termux` `uid:gid` ownership and have executable `700` permission before it can be run in the termux terminal without specifying its path.
+1. Copy the file to termux bin directory:
+  Either `cd` to the download/extraction directory and run following commands
+
+  ```
+  cat tasker_config_utils > /data/data/com.termux/files/usr/bin/tasker_config_utils
+  ```
+
+  Or use a file browser like root explorer to copy the file to the termux bin directory.
+
+2. Set correct ownership and permission:
+  Either run following commands to set them automatically, requires su binary to be in `$PATH`.
+
+  ```
+  export termux_bin_path="/data/data/com.termux/files/usr/bin"; export owner="$(stat -c "%u" "$termux_bin_path")"; for f in tasker_config_utils; do if [ -f "$termux_bin_path/$f" ]; then su -c "chown $owner:$owner \"$termux_bin_path/$f\" && chmod 700 \"$termux_bin_path/$f\""; fi; done;
+  ```
+
+  Or manually set them with your file browser. You can find `termux` `uid` and `gid` by running the command `id -u` in a non root shell in termux or by checking the properties of the termux `bin` directory from your file browser.
+##
+
+
+### tasker_config_utils Script Usage:
+
+You may optionally run the script placed in the current directory without setting the ownership and permission by running the command `bash tasker_config_utils`.
 If you are not running the script in termux, set the shebang of the script correctly (the first line of the script).
 
-##### Usage:
+- **`tasker_config_utils`**
+
+##### Help:
 
 ```
 Usage:
@@ -32,9 +77,9 @@ Use "tasker_config_utils command [ -h | --help ]" for more help about a command.
 
 - **`tasker_config_utils extract_tag`**
 
-##### Usage:
-
 **`tasker_config_utils extract_tag`** command is used to extract tags of nodes from a tasker config file.
+
+##### Help:
 
 ```
 tasker_config_utils extract_tag command is used to extract tags of nodes from a tasker config file.
@@ -134,11 +179,11 @@ Moreover when project 1 is imported, the tasks from project 1 and 3 are mixed in
 
 There should be a way to export projects with only tasks, scenes and profiles referenced inside the same project only. This way each project 1, 2 and 3 can be exported separately and imported separately so that there aren't any conflicts when importing. The temporary missing references would not be that big of a problem as long as the projects containing the missing tasks, scenes and profiles are also imported next. 
 
-Moreover, the order of the profiles and tasks in their respective tabs is not saved when sharing projects, atleast currently. The order and id of profiles and tasks belonging to a project is saved in its `Project` node of the Tasker config file in the `<pids>` and `<tids>` tags respectively. When you export a `Project` XML file, the order is the same as the one in the Tasker config file. But when you import the XML file into a different device, the ids are changed for all profiles and tasks so that there is not any conflict with the ids already existing in the Tasker config of the device. Ideally new ids should be assigned in the same order as they exist in the `Project` XML file but there are not currently resulting in loss of sort order.
+Moreover, the order of the profiles and tasks in their respective tabs is not saved when sharing projects, at least currently. The order and id of profiles and tasks belonging to a project is saved in its `Project` node of the Tasker config file in the `<pids>` and `<tids>` tags respectively. When you export a `Project` XML file, the order is the same as the one in the Tasker config file. But when you import the XML file into a different device, the ids are changed for all profiles and tasks so that there is not any conflict with the ids already existing in the Tasker config of the device. Ideally new ids should be assigned in the same order as they exist in the `Project` XML file but there are not currently resulting in loss of sort order.
 
 It might be helpful if you upvoted the [Tasker Feature Request](https://tasker.helprace.com/i459-project-export-without-including-profiles-tasks-scenes-from-other-projects) for these issues if you think this is something you would like to have so that support for this can be added directly in Tasker and this potentially unsafe XML modification is not needed. João is already aware of this but its not a high priority feature for him currently.
 
-##### Usage:
+##### Help:
 
 ```
 tasker_config_utils convert_project command is used to convert a project into a non-standalone project \
@@ -199,7 +244,7 @@ Generated config info file will contain:
 
 More info will be added later.
 
-##### Usage:
+##### Help:
 
 ```
 tasker_config_utils generate_config_info command is used to generate a markdown config info file for a given Tasker XML file.
@@ -266,42 +311,6 @@ set verbose level to 1 or 2 to get more info when running tasker_config_utils ge
 ##
 
 
-### Dependencies:
-
-You should have GNU sed installed in your system.
-- Termux (non-root shell): `apt install sed`
-- Linux distros: `sudo apt install sed`
-- Windows: You can use cygwin installer.
-##
-
-
-### Install Instructions For Termux In Android:
-
-The `tasker_config_utils` file should be placed in termux `bin` directory `/data/data/com.termux/files/usr/bin` and it should have `termux` uid:gid ownership and have executable `700` permission before it can be run in the termux terminal without specifying its path.
-1. Copy the file to termux bin directory:
-	Either `cd` to the download/extraction directory and run following commands
-
-	```
-	cat tasker_config_utils > /data/data/com.termux/files/usr/bin/tasker_config_utils
-	```
-
-	Or use a file browser like root explorer to copy the file to the termux bin directory.
-
-2. Set correct ownership and permission:
-	Either run following commands to set them automatically, requires su binary to be in `$PATH`.
-
-	```
-	export termux_bin_path="/data/data/com.termux/files/usr/bin"; export owner="$(stat -c "%u" "$termux_bin_path")"; for f in tasker_config_utils; do if [ -f "$termux_bin_path/$f" ]; then su -c "chown $owner:$owner \"$termux_bin_path/$f\" && chmod 700 \"$termux_bin_path/$f\""; fi; done;
-	```
-
-	Or manually set them with your file browser. You can find `termux` `uid` and `gid` by running the command `id -u` in a non root shell in termux or by checking the properties of the termux `bin` directory from your file browser.
-
-You may optionally run the script placed in the current directory without setting the ownership and permission by running the command `bash tasker_config_utils`.
-##
-
-
-
-
 ## Tasker XML Export Types:
 
 Tasker supports 4 types of XML exports.
@@ -316,26 +325,26 @@ Tasker supports 4 types of XML exports.
 - **`Project`**
 	It contains all profiles, scenes and tasks that are referenced in the project that is exported from the tasker config. Basically if you are exporting project 1, then the exported XML file will contain all profiles, scenes and tasks that are inside project 1 in the tasker config. Additionally, it will also contains profiles, scenes and tasks from projects other than project 1 that are referred or called by project 1 in some way. This automatically creates a standalone project file and does not require the users to export/import multiple projects. Tasker exports everything that is required for a user to run the project.  
 	*XML file suffix:* `.prj.xml`  
-	*Import Instructions:* `Long Press Anywhere On Bottom Nav Bar` -> `Import Project`  
-	*Export Instructions:* `Long Press On The <Project Name> Tab In Bottom Nav Bar` -> `Export` -> `XML to Storage`  
+	*Import Instructions:* `Long Press Anywhere On Bottom Nav Bar In Tasker Home Screen` -> `Import Project`  
+	*Export Instructions:* `Long Press On The <Project Name> Tab In Bottom Nav Bar In Tasker Home Screen` -> `Export` -> `XML to Storage`  
 
 - **`Profile`**
 	It contains the profile and all tasks that are referenced in the profile that is exported from the tasker config. This will also export anonymous tasks of the profile that are not named and contain only an id in the tasker config, like for example the entry and exit tasks which were created without naming them. Note the `Optional` when you select `New Task` will creating a profile.  
 	*XML file suffix:* `.prf.xml`  
-	*Import Instructions:* `Long Press PROFILES Tab In Top Nav Bar` -> `Import Profile`  
-	*Export Instructions:* `Long Press On The <Profile Name> In the PROFILES Tab` -> `Tasker Options` -> `Export` -> `XML to Storage`  
+	*Import Instructions:* `Long Press PROFILES Tab In Top Nav Bar In Tasker Home Screen` -> `Import Profile`  
+	*Export Instructions:* `Long Press On The <Profile Name> In the PROFILES Tab In Tasker Home Screen` -> `Tasker Options` -> `Export` -> `XML to Storage`  
 
 - **`Scene`**
 	It contains the scene and all tasks that are referenced in the scene that is exported from the tasker config. This will also export anonymous tasks of the scene and sub scenes that are not named and contain only an id in the tasker config. The key and element tasks of the scenes are anonymous tasks.  
 	*XML file suffix:* `.scn.xml`  
-	*Import Instructions:* `Long Press SCENES Tab In Top Nav Bar` -> `Import One Scene`  
-	*Export Instructions:* `Long Press On The <Scene Name> In the SCENES Tab` -> `Tasker Options` -> `Export` -> `XML to Storage`  
+	*Import Instructions:* `Long Press SCENES Tab In Top Nav Bar In Tasker Home Screen` -> `Import One Scene`  
+	*Export Instructions:* `Long Press On The <Scene Name> In the SCENES Tab In Tasker Home Screen` -> `Tasker Options` -> `Export` -> `XML to Storage`  
 
 - **`Task`**
 	It contains only the task that is exported from the tasker config.  
 	*XML file suffix:* `.tsk.xml`  
-	*Import Instructions:* `Long Press TASKS Tab In Top Nav Bar` -> `Import Task`  
-	*Export Instructions:* `Long Press On The <Task Name> In the TASKS Tab` -> `Tasker Options` -> `Export` -> `XML to Storage`  
+	*Import Instructions:* `Long Press TASKS Tab In Top Nav Bar In Tasker Home Screen` -> `Import Task`  
+	*Export Instructions:* `Long Press On The <Task Name> In the TASKS Tab In Tasker Home Screen` -> `Tasker Options` -> `Export` -> `XML to Storage`  
 
 If the profile, scene or task XML file does not have the correct suffix, it will not be displayed in the import menu by Tasker.
 
@@ -415,7 +424,7 @@ To find what type of exported file a given XML file is, even if it is not correc
 
 ## Tasker XML File Nodes And Tags:
 
-The `Profile`, `Project`, `Scene` and `Task` nodes are optional depending on the export type. Atleast one needs to exist.
+The `Profile`, `Project`, `Scene` and `Task` nodes are optional depending on the export type. At least one needs to exist.
 
 - **`dmetric Tag:`**
 
@@ -434,7 +443,7 @@ The `Profile`, `Project`, `Scene` and `Task` nodes are optional depending on the
 	- `<mid1>` defines the exit task id of the profile.
 	- `<nme>` defines the unique name of the profile.
 
-	The `<mid0>` and `<mid1>` tags will only exist if a task is actually set as the profile entry or exit task. Atleast one needs to be defined. If either tags exists and the task id in the tag is not referencing a named task, then it must be referencing an anonymous task.
+	The `<mid0>` and `<mid1>` tags will only exist if a task is actually set as the profile entry or exit task. At least one needs to be defined. If either tags exists and the task id in the tag is not referencing a named task, then it must be referencing an anonymous task.
 
 	*Optional Sub Nodes:*
 	- `App` defines the info for an Application Context.
@@ -444,7 +453,7 @@ The `Profile`, `Project`, `Scene` and `Task` nodes are optional depending on the
 	- `State` defines the info for a State Context.
 	- `Time` defines the info for a Time Context.
 
-	Atleast one `Context` sub node needs to be defined.
+	At least one `Context` sub node needs to be defined.
 ##
 
 
@@ -459,7 +468,7 @@ The `Profile`, `Project`, `Scene` and `Task` nodes are optional depending on the
 	- `<scenes>` defines the scene names of project.
 	- `<tids>` defines the task ids of project.
 
-	The `<pids>`, `<scenes>` and `<tids>` tags will only exist if atleast one profile, scene or task exists in the project respectively. The ids of anonymous profile or scene tasks are not listed in the `<tids>` tag of exported `Data Backup` XMl files. However, they are listed in exported `Project` XML files.
+	The `<pids>`, `<scenes>` and `<tids>` tags will only exist if at least one profile, scene or task exists in the project respectively. The ids of anonymous profile or scene tasks are not listed in the `<tids>` tag of exported `Data Backup` XMl files. However, they are listed in exported `Project` XML files.
 ##
 
 
@@ -493,7 +502,7 @@ The `Profile`, `Project`, `Scene` and `Task` nodes are optional depending on the
 	- `VideoElement` defines the info for a `Video` Element.
 	- `WebElement` defines the info for a `WebView` Element.
 
-	Depending on the elements in the scene or the key event of the scene, the nodes may contain one or more tags called  `checkchangeTask`, `clickTask`, `focuschangeTask`, `itemselectedTask`, `keyTask`, `linkclickTask`, `longclickTask`, `mapclickTask`, `maplongclickTask`, `pageloadedTask`, `strokeTask`, `valueselectedTask`, `videoTask`, etc. The tags will contain the task id of the anonymous task that will be run when the respective event is triggered. The tags and anonymous task nodes will only exist if atleast one action is defined in the respective event tabs like `TAP`, `LONG TAP`, `STROKE`, etc. An anonymous task will be created regardless of if the only action is a `Perform Task` action.
+	Depending on the elements in the scene or the key event of the scene, the nodes may contain one or more tags called  `checkchangeTask`, `clickTask`, `focuschangeTask`, `itemselectedTask`, `keyTask`, `linkclickTask`, `longclickTask`, `mapclickTask`, `maplongclickTask`, `pageloadedTask`, `strokeTask`, `valueselectedTask`, `videoTask`, etc. The tags will contain the task id of the anonymous task that will be run when the respective event is triggered. The tags and anonymous task nodes will only exist if at least one action is defined in the respective event tabs like `TAP`, `LONG TAP`, `STROKE`, etc. An anonymous task will be created regardless of if the only action is a `Perform Task` action.
 ##
 
 
@@ -512,7 +521,7 @@ The `Profile`, `Project`, `Scene` and `Task` nodes are optional depending on the
 	*Required Sub Nodes:*
 	- `Action` defines the info for an action.
 
-	Atleast one `Action` sub node needs to be defined.
+	At least one `Action` sub node needs to be defined.
 
 ## Tasker Example XML:
 
@@ -646,3 +655,4 @@ The `Key` event of the `Scene 2` will run the anonymous task with id `103` set i
 
 Additional information for other sub nodes and tags will be added later.
 ##
+

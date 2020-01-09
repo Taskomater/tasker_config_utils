@@ -17,9 +17,10 @@
 version=1.0
 
 
-##### Install Instructions For Termux In Android:
 
-#The `tasker_config_utils` file should be placed in termux `bin` directory `/data/data/com.termux/files/usr/bin` and it should have `termux` uid:gid ownership and have executable `700` permission before it can be run in the termux terminal without specifying its path.
+### Install Instructions For Termux In Android:
+
+#The `tasker_config_utils` file should be placed in termux `bin` directory `/data/data/com.termux/files/usr/bin` and it should have `termux` `uid:gid` ownership and have executable `700` permission before it can be run in the termux terminal without specifying its path.
 #1. Copy the file to termux bin directory:
 #	Either `cd` to the download/extraction directory and run following commands
 #
@@ -42,7 +43,9 @@ version=1.0
 #If you are not running the script in termux, set the shebang of the script correctly (the first line of the script).
 
 
-##### Usage:
+
+### Usage Examples:
+
 #extract all profile names
 #tasker_config_utils extract_tag -p "config.xml"
 
@@ -91,14 +94,16 @@ version=1.0
 #generate a markdown project info file of a specific project
 #tasker_config_utils generate_config_info -v -p "Foo_Bar.prf.xml" "Foo_Bar-out.prf.md" "Foo Bar"
 
-#define user modifiable variables start
 
 
-#define user modifiable variables end
+### Set User Modifiable Variables Start
 
 
-#define default variables start
-#do not modify below values unless you know what you are doing
+### Set User Modifiable Variables End
+
+
+### Set Default Variables Start
+#The following variables must not be modified unless you know what you are doing
 
 command_type="" #default to no command
 tasker_config="" #default to none
@@ -127,7 +132,7 @@ valid_tag='^[a-zA-Z0-9]+$'
 valid_comma_separated_number_list_regex='^[0-9]+(,[0-9]+)*$'
 valid_comma_separated_name_list_regex='^[][/$*.^+();!_a-zA-Z0-9 -]+(,[][/$*.^+();!_a-zA-Z0-9 -]+)*$' #allow '[]/$*.^+();!_a-zA-Z0-9 -'
 
-#define default variables end
+### Set Default Variables End
 
 
 [[ x"${BASH_SOURCE[0]}" == x"$0" ]] && tasker_config_utils_exit_command="exit" || tasker_config_utils_exit_command="return"
@@ -1356,8 +1361,8 @@ tasker_config_utils_generate_config_info() {
 	tasker_version="$(sed -nE 's/^<TaskerData sr="[^"]*"[^>]*tv="([^"]*)"[^>]*>$/\1/p' "$exported_tasker_config")"
 	timestamp="$(date +"%Y-%m-%d %H.%M.%S")"
 	export_info=$'\n\n'"## Export Info:"
-	export_info+=$'\n**Tasker Version:** `'"$tasker_version"'`'
-	export_info+=$'\n**Timestamp:** `'"$timestamp"'`'
+	export_info+=$'\n**Tasker Version:** `'"$tasker_version"'`  '
+	export_info+=$'\n**Timestamp:** `'"$timestamp"'`  '
 
 	profiles_name_list=$'\n\n'"## Profile Names:"
 	scenes_name_list=$'\n\n'"## Scene Names:"
@@ -1392,7 +1397,7 @@ tasker_config_utils_generate_config_info() {
 			return $return_value
 		fi
 
-		profiles_info_list+=$'\n\n**#:** `'"$i"'`'
+		profiles_info_list+=$'\n\n**#:** `'"$i"'`  '
 
 		#if profile_name is not set
 		if [ -z "$profile_name" ] ; then
@@ -1401,9 +1406,9 @@ tasker_config_utils_generate_config_info() {
 
 		profile_name_inline_code="$(convert_string_to_markdown_code "inline-code" "$profile_name")"
 		profiles_name_list+=$'\n'"- *$profile_name_inline_code*"
-		profiles_info_list+=$'\n**Name:** '"$profile_name_inline_code"
+		profiles_info_list+=$'\n**Name:** '"$profile_name_inline_code  "
 
-		profiles_info_list+=$'\n**ID:** `'"$profile_id"'`'
+		profiles_info_list+=$'\n**ID:** `'"$profile_id"'`  '
 
 		tasker_config_utils_log 2 "Extracting the profile entry task id of profile $profile_id from exported_tasker_config"
 
@@ -1437,7 +1442,7 @@ tasker_config_utils_generate_config_info() {
 			fi
 
 			task_name_inline_code="$(convert_string_to_markdown_code "inline-code" "$task_name")"
-			profiles_info_list+=$'\n**Entry Task:** '"$task_name_inline_code"
+			profiles_info_list+=$'\n**Entry Task:** '"$task_name_inline_code  "
 		fi
 
 		tasker_config_utils_log 2 "Extracting the profile exit task id of profile $profile_id from exported_tasker_config"
@@ -1472,7 +1477,7 @@ tasker_config_utils_generate_config_info() {
 			fi
 
 			task_name_inline_code="$(convert_string_to_markdown_code "inline-code" "$task_name")"
-			profiles_info_list+=$'\n**Exit Task:** '"$task_name_inline_code"
+			profiles_info_list+=$'\n**Exit Task:** '"$task_name_inline_code  "
 		fi
 
 		profiles_info_list+=$'\n##\n'
@@ -1528,7 +1533,7 @@ tasker_config_utils_generate_config_info() {
 			return $return_value
 		fi
 
-		tasks_info_list+=$'\n\n**#:** `'"$i"'`'
+		tasks_info_list+=$'\n\n**#:** `'"$i"'`  '
 
 		#if task_name is not set
 		if [ -z "$task_name" ] ; then
@@ -1537,9 +1542,9 @@ tasker_config_utils_generate_config_info() {
 
 		task_name_inline_code="$(convert_string_to_markdown_code "inline-code" "$task_name")"
 		tasks_name_list+=$'\n'"- *$task_name_inline_code*"
-		tasks_info_list+=$'\n**Name:** '"$task_name_inline_code"
+		tasks_info_list+=$'\n**Name:** '"$task_name_inline_code  "
 
-		tasks_info_list+=$'\n**ID:** `'"$task_id"'`'
+		tasks_info_list+=$'\n**ID:** `'"$task_id"'`  '
 
 		tasker_config_utils_log 2 "Extracting the collision handling value of task $task_id from exported_tasker_config"
 
@@ -1560,14 +1565,14 @@ tasker_config_utils_generate_config_info() {
 			fi
 
 			if [[ "$collision_handling_value" == "0" ]]; then
-				tasks_info_list+=$'\n**Collision Handling:** `'"Abort New Task"'`'
+				tasks_info_list+=$'\n**Collision Handling:** `'"Abort New Task"'`  '
 			elif [[ "$collision_handling_value" == "1" ]]; then
-				tasks_info_list+=$'\n**Collision Handling:** `'"Abort Existing Task"'`'
+				tasks_info_list+=$'\n**Collision Handling:** `'"Abort Existing Task"'`  '
 			elif [[ "$collision_handling_value" == "2" ]]; then
-				tasks_info_list+=$'\n**Collision Handling:** `'"Run Both Together"'`'
+				tasks_info_list+=$'\n**Collision Handling:** `'"Run Both Together"'`  '
 			fi
 		else
-			tasks_info_list+=$'\n**Collision Handling:** `'"Abort New Task"'`'
+			tasks_info_list+=$'\n**Collision Handling:** `'"Abort New Task"'`  '
 		fi
 
 
@@ -1589,10 +1594,10 @@ tasker_config_utils_generate_config_info() {
 				return 1
 			fi
 
-			tasks_info_list+=$'\n**Keep Device Awake:** `'"$keep_device_awake_value"'`'
+			tasks_info_list+=$'\n**Keep Device Awake:** `'"$keep_device_awake_value"'`  '
 
 		else
-			tasks_info_list+=$'\n**Keep Device Awake:** `'"false"'`'
+			tasks_info_list+=$'\n**Keep Device Awake:** `'"false"'`  '
 		fi
 
 		tasker_config_utils_log 2 "Extracting help anchor of task $task_id from exported_tasker_config"
@@ -1709,7 +1714,7 @@ tasker_config_utils_generate_config_info() {
 
 	#if generate_config_info_mode is set to "all"
 	if [[ "$generate_config_info_mode" == "all" ]]; then
-		exported_tasker_config_info_name=$(basename "$exported_tasker_config_info" | cut -d '.' -f 1 | sed 's/_/ /')
+		exported_tasker_config_info_name=$(basename "$exported_tasker_config_info" | cut -d '.' -f 1 | sed 's/_/ /g')
 		exported_tasker_config_info_output="# $exported_tasker_config_info_name"
 	#if generate_config_info_mode is set to "project"
 	elif [[ "$generate_config_info_mode" == "project" ]]; then
@@ -1803,7 +1808,7 @@ convert_string_to_markdown_code() {
 		max_consecutive_backticks_count=0
 	fi
 
-	#markdown requires surrounding backticks count to be atleast one more than the count of consecutive ticks in the string itself
+	#markdown requires surrounding backticks count to be at least one more than the count of consecutive ticks in the string itself
 	#if conversion_mode "inline-code"
 	if [ "$conversion_mode" == "inline-code" ]; then
 		backticks_count_to_print="$((max_consecutive_backticks_count + 1))"
@@ -2042,7 +2047,7 @@ process_tasker_config_utils_parameters () {
 								tasker_config_utils_log_arg_errors "No parameters set for option: '--${OPTARG%=*}'"
 								exit_tasker_config_utils_on_error "$command_type"
 								;;		
-							'' ) #"--" terminates argument processing to support non-options that extract_tag with dashes
+							'' ) #"--" terminates argument processing to support non-options that start with dashes
 								tasker_config_utils_log_args "Parsing option: '--'"
 								break 
 								;; 
@@ -2100,15 +2105,15 @@ process_tasker_config_utils_parameters () {
 				$tasker_config_utils_exit_command 1
 			fi
 
-			#if no arg passed
+			#if no parameter passed
 			if [ $# -eq 0 ]; then
 				show_tasker_config_utils_"$command_type"_help
 				$tasker_config_utils_exit_command 0
-			#if only 1 arg: tasker_config
+			#if only 1 parameter: tasker_config
 			elif [ $# -eq 1 ]; then
 				tasker_config="$(echo "$1")" #remove trailing newlines
 			else
-				tasker_config_utils_log_arg_errors "Invalid number of args passed. \"tasker_config_utils extract_tag\" command expects 1 arg: tasker_config"
+				tasker_config_utils_log_arg_errors "Invalid parameter count. \"tasker_config_utils extract_tag\" command expects 1 parameter: tasker_config"
 				$tasker_config_utils_exit_command 1
 			fi
 
@@ -2134,7 +2139,7 @@ process_tasker_config_utils_parameters () {
 								tasker_config_utils_log_arg_errors "Invalid option or parameters not allowed for option: '--${OPTARG%=*}'"
 								exit_tasker_config_utils_on_error "$command_type"
 								;;
-							'' ) #"--" terminates argument processing to support non-options that convert_project with dashes
+							'' ) #"--" terminates argument processing to support non-options that start with dashes
 								tasker_config_utils_log_args "Parsing option: '--'"
 								break 
 								;; 
@@ -2166,18 +2171,18 @@ process_tasker_config_utils_parameters () {
 			done
 			shift $((OPTIND -1)) #remove already processed arguments from argument list
 
-			#if no arg passed
+			#if no parameter passed
 			if [ $# -eq 0 ]; then
 				show_tasker_config_utils_"$command_type"_help
 				$tasker_config_utils_exit_command 0
-			#if only 4 arg: tasker_config, current_exported_tasker_project, new_exported_tasker_project and project_name
+			#if only 4 parameters: tasker_config, current_exported_tasker_project, new_exported_tasker_project and project_name
 			elif [ $# -eq 4 ]; then
 				tasker_config="$(echo "$1")" #remove trailing newlines
 				current_exported_tasker_project="$(echo "$2")" #remove trailing newlines
 				new_exported_tasker_project="$(echo "$3")" #remove trailing newlines
 				project_name="$(echo "$4")" #remove trailing newlines
 			else
-				tasker_config_utils_log_arg_errors "Invalid number of args passed. \"tasker_config_utils convert_project\" command expects 4 arg: tasker_config, current_exported_tasker_project, new_exported_tasker_project and project_name"
+				tasker_config_utils_log_arg_errors "Invalid parameter count. \"tasker_config_utils convert_project\" command expects 4 parameters: tasker_config, current_exported_tasker_project, new_exported_tasker_project and project_name"
 				$tasker_config_utils_exit_command 1
 			fi
 
@@ -2203,7 +2208,7 @@ process_tasker_config_utils_parameters () {
 								tasker_config_utils_log_arg_errors "Invalid option or parameters not allowed for option: '--${OPTARG%=*}'"
 								exit_tasker_config_utils_on_error "$command_type"
 								;;
-							'' ) #"--" terminates argument processing to support non-options that generate_config_info with dashes
+							'' ) #"--" terminates argument processing to support non-options that start with dashes
 								tasker_config_utils_log_args "Parsing option: '--'"
 								break 
 								;; 
@@ -2258,7 +2263,7 @@ process_tasker_config_utils_parameters () {
 					tasker_config_utils_log 2 "exported_tasker_config = \"$exported_tasker_config\""
 					tasker_config_utils_log 2 "exported_tasker_config_info = \"$exported_tasker_config_info\""
 				else
-					tasker_config_utils_log_arg_errors "Invalid number of args passed. \"tasker_config_utils generate_config_info\" command expects 2 args if generate_config_info_mode is \"all\": exported_tasker_config and exported_tasker_config_info"
+					tasker_config_utils_log_arg_errors "Invalid parameter count. \"tasker_config_utils generate_config_info\" command expects 2 parameters if generate_config_info_mode is \"all\": exported_tasker_config and exported_tasker_config_info"
 					$tasker_config_utils_exit_command 1
 				fi
 			#if generate_config_info_mode is set to "project", then only 3 args, exported_tasker_config, exported_tasker_config_info and project_name should have been passed
@@ -2272,7 +2277,7 @@ process_tasker_config_utils_parameters () {
 					tasker_config_utils_log 2 "exported_tasker_config_info = \"$exported_tasker_config_info\""
 					tasker_config_utils_log 2 "project_name = \"$project_name\""
 				else
-					tasker_config_utils_log_arg_errors "Invalid number of args passed. \"tasker_config_utils generate_config_info\" command expects 3 args if generate_config_info_mode is \"project\": exported_tasker_config, exported_tasker_config_info and project_name"
+					tasker_config_utils_log_arg_errors "Invalid parameter count. \"tasker_config_utils generate_config_info\" command expects 3 parameters if generate_config_info_mode is \"project\": exported_tasker_config, exported_tasker_config_info and project_name"
 					$tasker_config_utils_exit_command 1
 				fi
 
