@@ -10,11 +10,11 @@
 #description:   various tasker config utils
 #author:        agnostic-apollo
 #usage:         run "bash tasker_config_utils --help"
-#date:          18-Dec-2019
+#date:          20-Jan-2020
 #bash version:  4.0 or higher
 #credits:       -
 #license:       MIT License
-version=1.0
+version=0.1.0
 
 
 
@@ -2313,9 +2313,9 @@ Usage:
   tasker_config_utils command [command_options]
 
 Available commands:
-  extract_tag      extract tags from tasker config
-  convert_project  convert project into a non-standalone project
-  generate_config_info  convert project into a non-standalone project
+  extract_tag           extract tags from tasker config XML file
+  convert_project       convert project into a non-standalone project
+  generate_config_info  generate a markdown config info file for a given tasker config XML file
 
 
 Use \"tasker_config_utils command [ -h | --help ]\" for more help about a command.
@@ -2326,7 +2326,7 @@ Use \"tasker_config_utils command [ -h | --help ]\" for more help about a comman
 show_tasker_config_utils_extract_tag_help () {
 
 echo "
-tasker_config_utils extract_tag command is used to extract tags of nodes from a tasker config file.
+tasker_config_utils extract_tag command is used to extract tags of nodes from a tasker config XML file.
 
 
 Usage:
@@ -2413,7 +2413,7 @@ set verbose level to 1 or 2 to get more info when running tasker_config_utils co
 show_tasker_config_utils_generate_config_info_help () {
 
 echo "
-tasker_config_utils generate_config_info command is used to generate a markdown config info file for a given Tasker XML file.
+tasker_config_utils generate_config_info command is used to generate a markdown config info file for a given tasker config XML file.
 
 Generated config info file will contain:
 1) Export info like tasker version and timestamp.
