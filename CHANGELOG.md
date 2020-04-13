@@ -20,7 +20,7 @@ All notable changes to this project will be documented in this file.
 `-`
 
 
-## [0.2.0] - 2020-01-13
+## [0.2.0] - 2020-04-13
 
 ### Added
 - Added sha256sum to output of `generate_config_info` command.
