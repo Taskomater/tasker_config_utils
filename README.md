@@ -73,6 +73,8 @@ The `tasker_config_utils` file should be placed in termux `bin` directory `/data
 You may optionally run the script placed in the current directory without setting the ownership and permission by running the command `bash tasker_config_utils`.
 If you are not running the script in termux, set the shebang of the script correctly (the first line of the script).
 
+Any full exported tasker config passed to the script must have been generated using the `Data->Backup` Tasker menu option or the `Data Backup` action. The script will not work with `autobackups` since those contain XML nodes that are collapsed to a single line with no indentations. If you have an `autobackup`, then import that into Tasker and export a backup manually again with one of the ways mentioned earlier. This does not apply for exported project, task, profile or scene files.
+
 - **`tasker_config_utils`**
 
 ##### Help:
@@ -362,10 +364,10 @@ set verbose level to 1 or 2 to get more info when running tasker_config_utils ge
 Check [FAQs_And_FUQs.md](FAQs_And_FUQs.md) file for the **Frequently Asked Questions(FAQs)** and **Frequently Unasked Questions(FUQs)**.
 ##
 
+
 ### Changelog
 
 Check [CHANGELOG.md](CHANGELOG.md) file for the **Changelog**.
-
 ##
 
 

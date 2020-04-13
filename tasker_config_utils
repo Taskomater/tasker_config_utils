@@ -10,11 +10,11 @@
 #description:   various tasker config utils
 #author:        agnostic-apollo
 #usage:         run "bash tasker_config_utils --help"
-#date:          20-Jan-2020
+#date:          13-Apr-2020
 #bash version:  4.0 or higher
 #credits:       -
 #license:       MIT License
-version=0.1.0
+version=0.2.0
 
 
 
@@ -1150,6 +1150,22 @@ tasker_config_utils_generate_config_info() {
 		return 1
 	fi
 
+	#find sha256sum of exported_tasker_config
+	exported_tasker_config_sha256sum="$(sha256sum "$exported_tasker_config")"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to find sha256sum of exported_tasker_config"
+		return $return_value
+	fi
+
+	#remove filename from sha256sum of exported_tasker_config
+	exported_tasker_config_sha256sum="$(echo "$exported_tasker_config_sha256sum" | cut -d " " -f 1)"
+	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to remove filename from sha256sum of exported_tasker_config"
+		return $return_value
+	fi
+
 	#if generate_config_info_mode is set to "project"
 	if [[ "$generate_config_info_mode" == "project" ]]; then
 		tasker_config_utils_log 1 "project_name = \"$project_name\""
@@ -1363,6 +1379,7 @@ tasker_config_utils_generate_config_info() {
 	export_info=$'\n\n'"## Export Info:"
 	export_info+=$'\n**Tasker Version:** `'"$tasker_version"'`  '
 	export_info+=$'\n**Timestamp:** `'"$timestamp"'`  '
+	export_info+=$'\n**sha256sum:** `'"$exported_tasker_config_sha256sum"'`  '
 
 	profiles_name_list=$'\n\n'"## Profile Names:"
 	scenes_name_list=$'\n\n'"## Scene Names:"
