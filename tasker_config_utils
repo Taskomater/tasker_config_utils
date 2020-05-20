@@ -1375,7 +1375,7 @@ tasker_config_utils_generate_config_info() {
 	### Initialize Config Info
 
 	tasker_version="$(sed -nE 's/^<TaskerData sr="[^"]*"[^>]*tv="([^"]*)"[^>]*>$/\1/p' "$exported_tasker_config")"
-	timestamp="$(date +"%Y-%m-%d %H.%M.%S")"
+	timestamp="$(date -u +"%Y-%m-%d %H.%M.%S")"
 	export_info=$'\n\n'"## Export Info:"
 	export_info+=$'\n**Tasker Version:** `'"$tasker_version"'`  '
 	export_info+=$'\n**Timestamp:** `'"$timestamp"'`  '
