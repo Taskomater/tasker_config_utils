@@ -10,11 +10,11 @@
 #description:   various tasker config utils
 #author:        agnostic-apollo
 #usage:         run "bash tasker_config_utils --help"
-#date:          13-Apr-2020
+#date:          10-Sep-2020
 #bash version:  4.0 or higher
 #credits:       -
 #license:       MIT License
-version=0.2.0
+version=0.2.2
 
 
 
@@ -1678,6 +1678,43 @@ tasker_config_utils_generate_config_info() {
 		#if ascii_help_anchor is set
 		if [ ! -z "$ascii_help_anchor" ]; then
 
+			#if ascii_help_anchor contains a "Control" section
+			if [[ "$ascii_help_anchor" == *"Control:"* ]]; then
+				#extract the "Control" section from the tasks's help anchor
+				#Control section must be in the format:
+				###
+				#Control:
+				#"
+				#control 1
+				#control 2
+				#"
+				#
+				#
+				###
+				#use -E for extended regex, and -n to disable printing
+				#sed -nE '/^Control:$/' #match Control line
+				#					{   #if matched start a subscript
+				#					:a;  #create a label called a
+				#					N;   #add next line to pattern space
+				#					#if pattern space does not end with "\n"\n\n$" go to label a;
+				#					/\n"\n\n$/!ba
+				#					#if pattern space matches "^Control:\n"(.*)\n"\n\n.*", then print matched group
+				#					s/^Control:\n"(.*)\n"\n\n.*/\1/p;
+				#					}'
+				ascii_task_control="$(echo "$ascii_help_anchor" | sed -nE '/^Control:$/{:a;N;/\n"\n\n[^\n]*$/!ba;s/^Control:\n"(.*)\n"\n\n.*/\1/p;}')"
+				return_value=$?
+				if [ $return_value -ne 0 ]; then
+					tasker_config_utils_log_errors "Failed to extract task control of task $task_id from exported_tasker_config"
+					return $return_value
+				fi
+
+				#if ascii_task_control is set
+				if [ ! -z "$ascii_task_control" ]; then
+					ascii_task_control_code_block="$(convert_string_to_markdown_code "code-block" "$ascii_task_control")"
+					tasks_info_list+=$'\n**Control:**\n'"$ascii_task_control_code_block"
+				fi
+			fi
+
 			#if ascii_help_anchor contains a "Comments" section
 			if [[ "$ascii_help_anchor" == *"Comments:"* ]]; then
 				#extract the "Comments" section from the tasks's help anchor
@@ -2366,7 +2403,7 @@ Available command_options:
   [ --post_tag=<tag> ]
                      optional post tag sed regex to match while extracting tag
 
-tasker_config should be the path to a Tasker \"Data Backup\" XML file. It passed must be an exported \
+tasker_config should be the path to a Tasker \"Data Backup\" XML file. It must be an exported \
 \"Data Backup\" and not an auto backup.
 
 The options '-a', '-p', '-s', '-t' and '--node' set the extraction_node of the extract_tag command. \
@@ -2401,7 +2438,7 @@ Available command_options:
   [ -v | -vv ]       set verbose level to 1 or 2
 
 
-tasker_config should be the path to a Tasker \"Data Backup\" XML file. It passed must be an exported \
+tasker_config should be the path to a Tasker \"Data Backup\" XML file. It must be an exported \
 \"Data Backup\" and not an auto backup.
 
 current_exported_tasker_project should be the path to a Tasker exported \"Project\" XML file that needs to \

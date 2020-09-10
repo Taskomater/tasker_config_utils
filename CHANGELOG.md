@@ -20,6 +20,12 @@ All notable changes to this project will be documented in this file.
 `-`
 
 
+## [0.2.2] - 2020-09-10
+
+### Added
+- Added `Control` section to output of `generate_config_info` command.
+
+
 ## [0.2.1] - 2020-05-20
 
 ### Changed
@@ -38,7 +44,8 @@ All notable changes to this project will be documented in this file.
 ##
 
 
-[unreleased]: https://github.com/Taskomater/tasker_config_utils/compare/v0.2.1...HEAD
+[unreleased]: https://github.com/Taskomater/tasker_config_utils/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/Taskomater/tasker_config_utils/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/Taskomater/tasker_config_utils/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Taskomater/tasker_config_utils/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Taskomater/tasker_config_utils/releases/tag/v0.1.0
