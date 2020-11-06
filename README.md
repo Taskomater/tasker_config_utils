@@ -41,30 +41,54 @@ This is a project that provides bash util script(s) to extract information and m
 
 ### Downloads
 
+Latest version is `v0.3.0`.
+
 - [GitHub releases](https://github.com/Taskomater/tasker_config_utils/releases).
 ##
 
 
 ### Install Instructions For Termux In Android
 
-The `tasker_config_utils` file should be placed in termux `bin` directory `/data/data/com.termux/files/usr/bin` and it should have `termux` `uid:gid` ownership and have executable `700` permission before it can be run in the termux terminal without specifying its path.
-1. Copy the file to termux bin directory:
-  Either `cd` to the download/extraction directory and run following commands
+The `tasker_config_utils` file should be placed in termux `bin` directory `/data/data/com.termux/files/usr/bin`.  
+It should have `termux` `uid:gid` ownership and have executable `700` permission before it can be run directly without `bash`.  
 
-  ```
-  cat tasker_config_utils > /data/data/com.termux/files/usr/bin/tasker_config_utils
-  ```
+1. Download the `tasker_config_utils` file.  
 
-  Or use a file browser like root explorer to copy the file to the termux bin directory.
+    - Download to termux bin directory directly from github using `curl` using a non-root termux shell.  
+        - Latest release:  
 
-2. Set correct ownership and permission:
-  Either run following commands to set them automatically, requires su binary to be in `$PATH`.
+          `curl -L 'https://github.com/Taskomater/tasker_config_utils/releases/latest/download/tasker_config_utils' -o "/data/data/com.termux/files/usr/bin/tasker_config_utils"`  
 
-  ```
-  export termux_bin_path="/data/data/com.termux/files/usr/bin"; export owner="$(stat -c "%u" "$termux_bin_path")"; for f in tasker_config_utils; do if [ -f "$termux_bin_path/$f" ]; then su -c "chown $owner:$owner \"$termux_bin_path/$f\" && chmod 700 \"$termux_bin_path/$f\""; fi; done;
-  ```
+        - Specific release:  
 
-  Or manually set them with your file browser. You can find `termux` `uid` and `gid` by running the command `id -u` in a non root shell in termux or by checking the properties of the termux `bin` directory from your file browser.
+          `curl -L 'https://github.com/Taskomater/tasker_config_utils/releases/download/v0.1.0/tasker_config_utils' -o "/data/data/com.termux/files/usr/bin/tasker_config_utils"`  
+
+        - Master Branch *may be unstable*:  
+
+          `curl -L 'https://github.com/Taskomater/tasker_config_utils/raw/master/tasker_config_utils' -o "/data/data/com.termux/files/usr/bin/tasker_config_utils"`  
+
+    - Download `tasker_config_utils` file manually from github to the android download folder and then copy it to termux bin directory.  
+
+      You can download the `tasker_config_utils` file from a github release from the `Assets` dropdown menu.  
+
+      You can also download it from a specific github branch/tag by opening the `tasker_config_utils` file from the `Code` section.  
+      Right-click or hold the `Raw` button at the top and select `Download/Save link`.  
+
+      Then copy the file to termux bin directory using `cat` command below or use a root file browser to manually place it.  
+
+       `cat "/storage/emulated/0/Download/tasker_config_utils" > "/data/data/com.termux/files/usr/bin/tasker_config_utils"`  
+
+2. Set `termux` ownership executable permissions.  
+
+    - If you used a `curl` or `cat` to copy the file, then use a non-root termux shell to set ownership and permissions with `chown` and `chmod` commands respectively:  
+
+      `export termux_bin_path="/data/data/com.termux/files/usr/bin"; export owner="$(stat -c "%u" "$termux_bin_path")"; chown "$owner:$owner" "$termux_bin_path/tasker_config_utils" && chmod 700 "$termux_bin_path/tasker_config_utils";`  
+
+    - If you used a root file browser to copy the file, then use `su` to start a root shell to set ownership and permissions with `chown` and `chmod` commands respectively:  
+
+      `export termux_bin_path="/data/data/com.termux/files/usr/bin"; export owner="$(stat -c "%u" "$termux_bin_path")"; su -c "chown \"$owner:$owner\" \"$termux_bin_path/tasker_config_utils\" && chmod 700 \"$termux_bin_path/tasker_config_utils\"";`  
+
+    - Or manually set them with your root file browser. You can find `termux` `uid` and `gid` by running the command `id -u` in a non-root termux shell or by checking the properties of the termux `bin` directory from your root file browser.  
 ##
 
 
@@ -85,13 +109,16 @@ Usage:
   tasker_config_utils [ --version ]
   tasker_config_utils command [command_options]
 
+
 Available commands:
   extract_tag           extract tags from tasker config XML file
   convert_project       convert project into a non-standalone project
-  generate_config_info  generate a markdown config info file for a given tasker config XML file
+  generate_config_info  generate a markdown config info file for a 
+                        given tasker config XML file
 
 
-Use "tasker_config_utils command [ -h | --help ]" for more help about a command.
+Use "tasker_config_utils command [ -h | --help ]" for more help about
+a command.
 ```
 ##
 
@@ -103,96 +130,122 @@ Use "tasker_config_utils command [ -h | --help ]" for more help about a command.
 ##### Help:
 
 ```
-tasker_config_utils extract_tag command is used to extract tags of nodes from a tasker config XML file.
+tasker_config_utils extract_tag command is used to extract tags of
+nodes from a tasker config XML file.
 
 
 Usage:
   tasker_config_utils extract_tag [command_options] tasker_config
+
 
 Available command_options:
   [ -h | --help ]    display this help screen
   [ -v | -vv ]       set verbose level to 1 or 2
   [ -a ]             extract Project node tag
   [ -e ]             extract tags from entire node
+  [ -n ]             print entire extracted nodes
   [ -p ]             extract Profile node tag
   [ -s ]             extract Task node tag
   [ -t ]             extract Scene node tag
+  [ --nodes_print_command=<command> ]
+                     extracted nodes print sed command to 
+                     be used with '-n' option 
   [ --node=<node> ]
-                     optional node to extract
+                     node to extract
   [ --tag=<tag> ]
-                     optional tag to extract
-  [ --pre_tag=<tag> ]
-                     optional pre tag sed regex to match while extracting tag
-  [ --post_tag=<tag> ]
-                     optional post tag sed regex to match while extracting tag
+                     tag to extract
+  [ --pre_tag=<regex> ]
+                     pre tag sed regex to match while 
+                     extracting tag
+  [ --post_tag=<regex> ]
+                     post tag sed regex to match while 
+                     extracting tag
 
-tasker_config should be the path to a Tasker "Data Backup" XML file. It passed must be an exported \
-"Data Backup" and not an auto backup.
+tasker_config should be the path to a Tasker "Data Backup" XML
+file. It must be an exported "Data Backup" and not an auto backup.
 
-The options '-a', '-p', '-s', '-t' and '--node' set the extraction_node of the extract_tag command. \
-One of them must be passed.
+The options '-a', '-p', '-s', '-t' and '--node' set the
+extraction_node of the extract_tag command. One of them must
+be passed.
 
-For the option '-a', the default tag is 'name'. For all others, the default tag is 'nme'.
+For the option '-a', the default tag is 'name'. For all others,
+the default tag is 'nme'.
 
-By default tags will only be extracted from the node itself and not any of its sub nodes. Multi-line tags \
-can be extracted. However, this only allows the first tag of the same type to be extracted from each node. 
+By default tags will only be extracted from the node itself and not
+any of its sub nodes. Multi-line tags can be extracted. However,
+this only allows the first tag of the same type to be extracted
+from each node.
 
-The '-e' option can be passed to extract tags from the node and its sub nodes. Only single line tags can \
-be extracted. However, this allows multiple tags of the same type to be extracted from each node.
+The '-e' option can be passed to extract tags from the node and its
+sub nodes. Only single line tags can be extracted. However, this
+allows multiple tags of the same type to be extracted from each node.
 
-set verbose level to 1 or 2 to get more info when running tasker_config_utils extract_tag command.
+The '-n' option will print the entire extracted nodes instead of just
+printing the tag. The print mode used by sed can be set using
+'--nodes_print_command', it defaults to "p".
+
+If you are passing '--tag', '--pre_tag' or '--post_tag' options with
+the '-e' option, it might be helpful to pass '-vv' for verbose mode
+so that the matching nodes can also be printed on the console in
+addition to the extracted tag values or use the '-n' option to just
+print entire nodes instead of just tags.
+
+Set verbose level to 1 or 2 to get more info when running
+tasker_config_utils extract_tag command.
 ```
 
 ##### Examples:
 
-```
-#extract all profile names
-tasker_config_utils extract_tag -p "config.xml"
+- Extract all profile names.  
+  `tasker_config_utils extract_tag -p "config.xml"`  
 
-#extract all scene names
-tasker_config_utils extract_tag -s "config.xml"
+- Extract all scene names.  
+  `tasker_config_utils extract_tag -s "config.xml"`  
 
-#extract all task names
-tasker_config_utils extract_tag -t "config.xml"
+- Extract all task names.  
+  `tasker_config_utils extract_tag -t "config.xml"`  
 
-#extract all project names
-tasker_config_utils extract_tag -a "config.xml" 
+- Extract all project names.  
+  `tasker_config_utils extract_tag -a "config.xml"`  
 
-#extract all task names with "Run Both Together" collision handling
-tasker_config_utils extract_tag -t --post_tag='<rty>2<\/rty>' "config.xml"
+- Extract all task names with "Run Both Together" collision handling.  
+  `tasker_config_utils extract_tag -t --post_tag='<rty>2<\/rty>' "config.xml"`  
 
-#extract all scene names from the project "Base"
-tasker_config_utils extract_tag -a --pre_tag='<name>Base<\/name>' --tag=scenes "config.xml" 
+- Extract all scene names from the project "Base".  
+  `tasker_config_utils extract_tag -a --pre_tag='<name>Base<\/name>' --tag=scenes "config.xml"`  
 
-#extract all profile, scene and task names from tasker_config
-tasker_config="config.xml"; echo -e "Profiles:"; tasker_config_utils extract_tag -p "$tasker_config"; echo -e "\nScenes:"; tasker_config_utils extract_tag -s "$tasker_config"; echo -e "\nTasks:"; tasker_config_utils extract_tag -t "$tasker_config";
+- Extract all profile, scene and task names from tasker_config.  
+  `tasker_config="config.xml"; echo -e "Profiles:"; tasker_config_utils extract_tag -p "$tasker_config"; echo -e "\nScenes:"; tasker_config_utils extract_tag -s "$tasker_config"; echo -e "\nTasks:"; tasker_config_utils extract_tag -t "$tasker_config";`  
 
-#extract all task labels, the piped sed commands convert XML special characters to ascii
-tasker_config_utils extract_tag --node='Action' --tag='label' "config.xml" | sed -e 's/&amp;/\&/g' -e 's/&lt;/</g' -e 's/&gt;/>/g'
+- Extract all task labels, then pipe output to sed to convert XML special characters to ascii.  
+  `tasker_config_utils extract_tag --node='Action' --tag='label' "config.xml" | sed -e 's/&amp;/\&/g' -e 's/&lt;/</g' -e 's/&gt;/>/g'`  
 
-#extract all task anchor labels, the piped sed commands convert XML special characters to ascii
-tasker_config_utils extract_tag --node='Action' --pre_tag='<code>300<\/code>' --tag='label' "config.xml" | sed -e 's/&amp;/\&/g' -e 's/&lt;/</g' -e 's/&gt;/>/g'
+- Extract all task "Anchor" action labels, then pipe output to sed to convert XML special characters to ascii.  
+  `tasker_config_utils extract_tag --node='Action' --pre_tag='<code>300<\/code>' --tag='label' "config.xml" | sed -e 's/&amp;/\&/g' -e 's/&lt;/</g' -e 's/&gt;/>/g'`  
 
-#extract all task help anchor(action 0) labels of tasks, the piped sed commands convert XML special characters to ascii
-tasker_config_utils extract_tag --node='Action' --pre_tag='sr="act0".*<code>300<\/code>' --tag='label' "config.xml" | sed -e 's/&amp;/\&/g' -e 's/&lt;/</g' -e 's/&gt;/>/g'
+- Extract all task "Anchor" action labels that are first action (act0) of tasks, then pipe output to sed to convert XML special characters to ascii.  
+  `tasker_config_utils extract_tag --node='Action' --pre_tag='sr="act0".*<code>300<\/code>' --tag='label' "config.xml" | sed -e 's/&amp;/\&/g' -e 's/&lt;/</g' -e 's/&gt;/>/g'`  
 
-#extract all scene tap events anonymous task ids
-tasker_config_utils extract_tag -s -e --tag='itemclickTask' "config.xml" 
+- Extract all scene tap events anonymous task ids.  
+  `tasker_config_utils extract_tag -s -e --tag='itemclickTask' "config.xml"`  
 
-#extract all scene anonymous task ids
-tasker_config_utils extract_tag -s -e --tag='[a-zA-Z0-9]+Task' "config.xml"
+- Extract all scene anonymous task ids.  
+  `tasker_config_utils extract_tag -s -e --tag='[a-zA-Z0-9]+Task' "config.xml"`  
 
-#extract profile id of profile using entry task with task id 666 and also print the matching profile nodes
-tasker_config_utils extract_tag -p -e --tag="id" --post_tag='<mid0>666<\/mid0>' -vv "config.xml" 
-```
+- Extract profile id of profile using entry task with task id 666 and also print the matching profile nodes.  
+  `tasker_config_utils extract_tag -p -e --tag="id" --post_tag='<mid0>666<\/mid0>' -vv "config.xml"`  
 
-If you are passing `--tag`, `--pre_tag` or `--post_tag` options with the `-e` option, it might be helpful to pass `-vv` for verbose mode so that the matching nodes can also be printed on the console in addition to the extracted tag values.
+- Extract all "Java Function" action nodes.  
+  `tasker_config_utils extract_tag -en --node="Action" --tag="-" --post_tag='<code>664<\/code>' "config.xml"`  
+
+- Extract all "Java Function" action nodes and print ending line number.  
+  `tasker_config_utils extract_tag -en --node="Action" --tag="-" --post_tag='<code>664<\/code>' --nodes_print_command='{s/(.*)/\1\n\n/;{=;p;}}' "config.xml"`  
 ##
 
 
 - **`tasker_config_utils convert_project`**
 
-**`tasker_config_utils convert_project`** command is used to convert a project into a non-standalone project so that it does not have profiles, scenes and tasks that were originally not in the project in the tasker_config. The details on how this works is in the function header of the script.
+**`tasker_config_utils convert_project`** command is used to convert a project into a non-standalone project so that it does not have profiles, scenes and tasks that were originally not in the project in the tasker config. The details on how this works is in the function header of the script.
 
 The reason why this is needed is because of some issues in the export `Project` XML design. The problem is that say you have 3 projects. project 1 and 2 use common helper profiles, tasks and scenes which are all defined in project 3. Now if you export project 1 and 2 and share it with someone. They will only be able to import project 1 and importing project 2 will fail because when they imported project 1 some or all the helper tasks from project 3 were also imported, now they can't import project 2 because Tasker config already contains tasks with the same name.
 
@@ -207,49 +260,64 @@ It might be helpful if you upvoted the [Tasker Feature Request](https://tasker.h
 ##### Help:
 
 ```
-tasker_config_utils convert_project command is used to convert a project into a non-standalone project \
-so that it does not have profiles, scenes and tasks that were originally not in the project in the \
-tasker_config. tasker_config must be an exported data backup and not an auto backup.
+tasker_config_utils convert_project command is used to convert a
+project into a non-standalone project so that it does not have
+profiles, scenes and tasks that were originally not in the project
+in the tasker_config. tasker_config must be an exported data backup
+and not an auto backup.
 
 
 Usage:
-  tasker_config_utils convert_project [command_options] tasker_config current_exported_tasker_project new_exported_tasker_project project_name
+  tasker_config_utils convert_project [command_options] tasker_config \
+    current_exported_tasker_project new_exported_tasker_project \
+      project_name
+
 
 Available command_options:
   [ -h | --help ]    display this help screen
   [ -v | -vv ]       set verbose level to 1 or 2
 
 
-tasker_config should be the path to a Tasker "Data Backup" XML file. It passed must be an exported \
-"Data Backup" and not an auto backup.
+tasker_config should be the path to a Tasker "Data Backup" XML
+file. It must be an exported "Data Backup" and not an auto backup.
 
-current_exported_tasker_project should be the path to a Tasker exported "Project" XML file that needs to \
-be converted. It must have been exported from Tasker with a config that is the same as the tasker_config file.
+current_exported_tasker_project should be the path to a Tasker
+exported "Project" XML file that needs to be converted. It must
+have been exported from Tasker with a config that is the same as
+the tasker_config file.
 
-new_exported_tasker_project should be the path to the output "Project" XML file.
+new_exported_tasker_project should be the path to the output
+"Project" XML file.
 
-project_name should be the Tasker project name which was exported to current_exported_tasker_project. Its \
-project node must exist inside both the tasker_config and current_exported_tasker_project files. Its \
-Project node in the current_exported_tasker_project should also have a 'sr' value of 'proj0'.
+project_name should be the Tasker project name which was exported
+to current_exported_tasker_project. Its project node must exist
+inside both the tasker_config and current_exported_tasker_project
+files. Its Project node in the current_exported_tasker_project
+should also have a 'sr' value of 'proj0'.
+
+Set verbose level to 1 or 2 to get more info when running
+tasker_config_utils convert_project command.
 
 
-Example Usage:
+Usage Flow:
 Create a Tasker "Data Backup". Example: "config.xml".
-Export Tasker "Foo Bar" Project. It should by default be exported to "Foo_Bar.prf.xml".
+Export Tasker "Foo Bar" Project. It should by default be exported to
+"Foo_Bar.prf.xml".
 Place both files in same folder and run following command:
-  tasker_config_utils convert_project -v "config.xml" "Foo_Bar.prf.xml" "Foo_Bar-out.prf.xml" "Foo Bar"
+  `tasker_config_utils convert_project -v "config.xml" \
+    "Foo_Bar.prf.xml" "Foo_Bar-out.prf.xml" "Foo Bar"`
 
-Optionally use the "Convert Tasker Project File To Non-Standalone Project File" task from the "Tasker Config Utils" project.
-
-set verbose level to 1 or 2 to get more info when running tasker_config_utils convert_project command.
+Optionally use the "Convert Tasker Project File To Non-Standalone
+Project File" task from the "TR_Tasker_Config_Utils" project to
+convert a project file or use the
+"Export Tasker Project XML Files To Android Storage?" task to
+automatically export non-standalone projects.
 ```
 
 ##### Examples:
 
-```
-#convert a project file into a non-standalone project file
-tasker_config_utils convert_project -v "config.xml" "Foo_Bar.prf.xml" "Foo_Bar-out.prf.xml" "Foo Bar" 
-```
+- Convert a project file into a non-standalone project file.  
+  `tasker_config_utils convert_project -v "config.xml" "Foo_Bar.prf.xml" "Foo_Bar-out.prf.xml" "Foo Bar"`  
 ##
 
 
@@ -268,67 +336,94 @@ More info will be added later.
 ##### Help:
 
 ```
-tasker_config_utils generate_config_info command is used to generate a markdown config info file for a given tasker config XML file.
+tasker_config_utils generate_config_info command is used to generate
+a markdown config info file for a given tasker config XML file.
 
 Generated config info file will contain:
 1) Export info like tasker version and timestamp.
 2) Names of all profiles, scenes and tasks in the project.
 3) Profiles Info like their settings, entry and exit tasks, etc.
-4) Tasks Info like their settings, the label of the first action of the task if its an anchor action as help, etc.
+4) Tasks Info like their settings, the label of the first action of
+   the task if its an anchor action as task help, etc.
 
 Usage:
-  tasker_config_utils generate_config_info [command_options] -a exported_tasker_config exported_tasker_config_info
-  tasker_config_utils generate_config_info [command_options] -p exported_tasker_config exported_tasker_config_info project_name
+  tasker_config_utils generate_config_info [command_options] -a \
+    exported_tasker_config exported_tasker_config_info
+
+  tasker_config_utils generate_config_info [command_options] -p \
+    exported_tasker_config exported_tasker_config_info project_name
+
 
 Available command_options:
   [ -h | --help ]    display this help screen
   [ -v | -vv ]       set verbose level to 1 or 2
   [ -a ]             extract all info
+  [ -c ]             put task help in a code block
   [ -p ]             extract info of a specific project
+  [ -s ]             add script signature at end of config info file
 
-The options '-a' and '-p' set the generate_config_info_mode of the generate_config_info command. One of \
-them must be passed. The
+The options '-a' and '-p' set the generate_config_info_mode of the
+generate_config_info command. One of them must be passed.
 
-The '-a' option sets the generate_config_info_mode to "all" mode. If this is passed, \
-then exported_tasker_config can be any type of exported Tasker XML file like a "Data Backup", 
-"Profile", "Project", "Task" or a "Scene" XML file of which config info needs to be generated. \
-The info of all profiles, scenes and tasks inside the file will be generated. This is likely \
-to take some time depending on XML file size.
+The '-a' option sets the generate_config_info_mode to "all"
+mode. If this is passed, then exported_tasker_config can be any
+type of exported Tasker XML file like a "Data Backup", "Profile",
+"Project", "Task" or a "Scene" XML file of which config info needs to
+be generated. The info of all profiles, scenes and tasks inside the
+file will be generated. This is likely going to take some time
+depending on XML file size.
 
-The '-p' option sets the generate_config_info_mode to "project" mode. If this is passed, then \
-exported_tasker_config should be the path to a Tasker exported "Project" XML file of which the \
-project info needs to be generated. You may optionally pass a Tasker "Data Backup" XML file instead. \
-Only the info of profiles, scenes and tasks belonging to the project will be generated. The project_name \
-should be the Tasker project name which was exported to current_exported_tasker_config. Its \
-project node must exist inside the exported_tasker_config file.
+The '-p' option sets the generate_config_info_mode to "project"
+mode. If this is passed, then exported_tasker_config should be
+the path to a Tasker exported "Project" XML file of which the
+project info needs to be generated. You may optionally pass a
+Tasker "Data Backup" XML file instead. Only the info of profiles,
+scenes and tasks belonging to the project will be generated. The
+project_name should be the Tasker project name which was exported to
+current_exported_tasker_config. Its project node must exist inside
+the exported_tasker_config file.
 
-exported_tasker_config_info should be the path to the output project info markdown file.
+exported_tasker_config_info should be the path to the output project
+info markdown file.
+
+The '-c' option will surround the task help in a code block. By
+default the help should be in markdown format.
+
+The '-s' option will add a script signature containing a link to the
+script repo at the end.
+
+Set verbose level to 1 or 2 to get more info when running
+tasker_config_utils generate_config_info command.
 
 
-Example Usage 1:
+Usage Flow 1:
 Create a Tasker "Data Backup". Example: "config.xml".
 Run following command:
-  tasker_config_utils generate_config_info -v -a "config.xml" "config.md"
+  `tasker_config_utils generate_config_info -v -a "config.xml" \
+    "config.md"`
 
-Example Usage 2:
-Export Tasker "Foo Bar" Project. It should by default be exported to "Foo_Bar.prf.xml".
+Usage Flow 2:
+Export Tasker "Foo Bar" Project. It should by default be exported to
+"Foo_Bar.prf.xml".
 Run following command:
-  tasker_config_utils generate_config_info -v -p "Foo_Bar.prf.xml" "Foo_Bar-out.prf.md" "Foo Bar"
+  `tasker_config_utils generate_config_info -v -p "Foo_Bar.prf.xml" \
+    "Foo_Bar-out.prf.md" "Foo Bar"`
 
-Optionally use the "Convert Tasker Project File To Non-Standalone Project File" task from the "Tasker Config Utils" project.
 
-set verbose level to 1 or 2 to get more info when running tasker_config_utils generate_config_info command.
+Optionally use the
+"Export Tasker Project XML Files To Android Storage?" and
+"Export Tasker Task XML Files To Android Storage?" tasks from the
+"TR_Tasker_Config_Utils" project to automatically create config info
+files on export.
 ```
 
 ##### Examples:
 
-```
-#generate a markdown project info file for a given tasker config file
-#tasker_config_utils generate_config_info -v -a "config.xml" "config.md"
+- Generate a markdown project info file for a given tasker config file.  
+  `tasker_config_utils generate_config_info -v -a "config.xml" "config.md"`  
 
-#generate a markdown project info file of a specific project
-#tasker_config_utils generate_config_info -v -p "Foo_Bar.prf.xml" "Foo_Bar-out.prf.md" "Foo Bar"
-```
+- Generate a markdown project info file of a specific project.  
+  `tasker_config_utils generate_config_info -v -p "Foo_Bar.prf.xml" "Foo_Bar-out.prf.md" "Foo Bar"`  
 ##
 
 
