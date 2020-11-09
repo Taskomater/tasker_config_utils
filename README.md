@@ -41,7 +41,7 @@ This is a project that provides bash util script(s) to extract information and m
 
 ### Downloads
 
-Latest version is `v0.3.0`.
+Latest version is `v0.4.0`.
 
 - [GitHub releases](https://github.com/Taskomater/tasker_config_utils/releases).
 ##
@@ -160,6 +160,7 @@ Available command_options:
   [ --post_tag=<regex> ]
                      post tag sed regex to match while 
                      extracting tag
+
 
 tasker_config should be the path to a Tasker "Data Backup" XML
 file. It must be an exported "Data Backup" and not an auto backup.
@@ -361,6 +362,11 @@ Available command_options:
   [ -c ]             put task help in a code block
   [ -p ]             extract info of a specific project
   [ -s ]             add script signature at end of config info file
+  [ --text_description=<description> ]
+                     text description of config
+  [ --code_description=<description> ]
+                     code description of config
+
 
 The options '-a' and '-p' set the generate_config_info_mode of the
 generate_config_info command. One of them must be passed.
@@ -391,6 +397,13 @@ default the help should be in markdown format.
 
 The '-s' option will add a script signature containing a link to the
 script repo at the end.
+
+The string passed with the '--text_description' option will be added
+under the 'Description' heading at the start.
+
+The string passed with the '--code_description' option will be added
+under the 'Code Description' heading at the end in a markdown code
+block.
 
 Set verbose level to 1 or 2 to get more info when running
 tasker_config_utils generate_config_info command.

@@ -20,6 +20,12 @@ All notable changes to this project will be documented in this file.
 `-`
 
 
+## [0.4.0] - 2020-11-09
+
+### Added
+- Added support for text and code descriptions for `generate_config_info` command using `--text_description` and `--code_description` options.
+
+
 ## [0.3.0] - 2020-11-06
 
 ### Added
@@ -57,7 +63,8 @@ All notable changes to this project will be documented in this file.
 ##
 
 
-[unreleased]: https://github.com/Taskomater/tasker_config_utils/compare/v0.3.0...HEAD
+[unreleased]: https://github.com/Taskomater/tasker_config_utils/compare/v0.4.0...HEAD
+[0.3.0]: https://github.com/Taskomater/tasker_config_utils/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Taskomater/tasker_config_utils/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/Taskomater/tasker_config_utils/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/Taskomater/tasker_config_utils/compare/v0.2.0...v0.2.1

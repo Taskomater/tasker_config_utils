@@ -14,7 +14,7 @@
 #bash version:  4.0 or higher
 #credits:       -
 #license:       MIT License
-version=0.3.0
+version=0.4.0
 
 
 
@@ -1722,6 +1722,29 @@ tasker_config_utils_generate_config_info() {
 		i=$(( i + 1 ))
 	done
 
+
+
+	###Add Text Description
+	
+	#if text_description is set
+	if [ ! -z "$text_description" ]; then
+		text_description_info=$'\n\n\n\n&nbsp;\n'"## Description:"$'\n&nbsp;\n\n'"$text_description"$'\n##\n&nbsp;'
+	else
+		text_description_info=""
+	fi
+
+	###Add Code Description
+	
+	#if code_description is set
+	if [ ! -z "$code_description" ]; then
+		code_description="$(convert_string_to_markdown_code "code-block" "$code_description")"
+		code_description_info=$'\n\n\n&nbsp;\n'"## Code Description:"$'\n&nbsp;\n\n'"$code_description"$'\n\n##\n&nbsp;\n'
+	else
+		code_description_info=""
+	fi
+
+
+
 	tasker_config_utils_log_literal 1 "\n"
 	tasker_config_utils_log 1 "Writing All Info To Output File"
 
@@ -1766,6 +1789,7 @@ tasker_config_utils_generate_config_info() {
 	fi
 
 	exported_tasker_config_info_output+="$export_info"
+	[ ! -z "$text_description_info" ] && exported_tasker_config_info_output+="$text_description_info"
 	exported_tasker_config_info_output+=$'\n\n'
 	exported_tasker_config_info_output+="$profiles_name_list"
 	exported_tasker_config_info_output+=$'\n\n'
@@ -1776,6 +1800,7 @@ tasker_config_utils_generate_config_info() {
 	exported_tasker_config_info_output+="$profiles_info_list"
 	exported_tasker_config_info_output+=$'\n\n'
 	exported_tasker_config_info_output+="$tasks_info_list"
+	[ ! -z "$code_description_info" ] && exported_tasker_config_info_output+="$code_description_info"
 
 	#if add_script_signature_to_config_info is enabled
 	if [[ "$add_script_signature_to_config_info" == "1" ]]; then
@@ -2268,6 +2293,24 @@ process_tasker_config_utils_parameters () {
 								tasker_config_utils_log_arg_errors "Invalid option or parameters not allowed for option: '--${OPTARG%=*}'"
 								exit_tasker_config_utils_on_error "$command_type"
 								;;
+							code_description=?*)
+								val="$long_optargs"
+								tasker_config_utils_log_args "Parsing option: '--${OPTARG%=*}', value: '${val}'"
+								code_description="$(echo "$val")" #remove trailing newlines
+								;;
+							code_description | code_description=)
+								tasker_config_utils_log_arg_errors "No parameters set for option: '--${OPTARG%=*}'"
+								exit_tasker_config_utils_on_error "$command_type"
+								;;
+							text_description=?*)
+								val="$long_optargs"
+								tasker_config_utils_log_args "Parsing option: '--${OPTARG%=*}', value: '${val}'"
+								text_description="$(echo "$val")" #remove trailing newlines
+								;;
+							text_description | text_description=)
+								tasker_config_utils_log_arg_errors "No parameters set for option: '--${OPTARG%=*}'"
+								exit_tasker_config_utils_on_error "$command_type"
+								;;	
 							'' ) #"--" terminates argument processing to support non-options that start with dashes
 								tasker_config_utils_log_args "Parsing option: '--'"
 								break 
@@ -2430,6 +2473,7 @@ Available command_options:
   [ --post_tag=<regex> ]
                      post tag sed regex to match while 
                      extracting tag
+
 
 tasker_config should be the path to a Tasker "Data Backup" XML
 file. It must be an exported "Data Backup" and not an auto backup.
@@ -2630,6 +2674,11 @@ Available command_options:
   [ -c ]             put task help in a code block
   [ -p ]             extract info of a specific project
   [ -s ]             add script signature at end of config info file
+  [ --text_description=<description> ]
+                     text description of config
+  [ --code_description=<description> ]
+                     code description of config
+
 
 The options '-a' and '-p' set the generate_config_info_mode of the
 generate_config_info command. One of them must be passed.
@@ -2659,7 +2708,14 @@ The '-c' option will surround the task help in a code block. By
 default the help should be in markdown format.
 
 The '-s' option will add a script signature containing a link to the
-script repo at the end. 
+script repo at the end.
+
+The string passed with the '--text_description' option will be added
+under the 'Description' heading at the start.
+
+The string passed with the '--code_description' option will be added
+under the 'Code Description' heading at the end in a markdown code
+block.
 
 Set verbose level to 1 or 2 to get more info when running
 tasker_config_utils generate_config_info command.
