@@ -41,7 +41,7 @@ This is a project that provides bash util script(s) to extract information and m
 
 ### Downloads
 
-Latest version is `v0.4.0`.
+Latest version is `v0.5.0`.
 
 - [GitHub releases](https://github.com/Taskomater/tasker_config_utils/releases).
 ##
@@ -357,15 +357,19 @@ Usage:
 
 Available command_options:
   [ -h | --help ]    display this help screen
+  [ --help-extra ]   display more help about how this command works
   [ -v | -vv ]       set verbose level to 1 or 2
   [ -a ]             extract all info
   [ -c ]             put task help in a code block
+  [ -m ]             create sha256sums file config xml and info files 
   [ -p ]             extract info of a specific project
   [ -s ]             add script signature at end of config info file
   [ --text_description=<description> ]
                      text description of config
   [ --code_description=<description> ]
                      code description of config
+  [ --sha256sums_file=<path> ]
+                     path to sha256sums file
 
 
 The options '-a' and '-p' set the generate_config_info_mode of the
@@ -382,7 +386,7 @@ depending on XML file size.
 The '-p' option sets the generate_config_info_mode to "project"
 mode. If this is passed, then exported_tasker_config should be
 the path to a Tasker exported "Project" XML file of which the
-project info needs to be generated. You may optionally pass a
+config info needs to be generated. You may optionally pass a
 Tasker "Data Backup" XML file instead. Only the info of profiles,
 scenes and tasks belonging to the project will be generated. The
 project_name should be the Tasker project name which was exported to
@@ -404,6 +408,14 @@ under the 'Description' heading at the start.
 The string passed with the '--code_description' option will be added
 under the 'Code Description' heading at the end in a markdown code
 block.
+
+The '-m' option will create a sha256sum file for exported_tasker_config
+and exported_tasker_config_info files. The sha256sum file will by
+default be created in same directory as exported_tasker_config_info
+and the same basename except with a '.sha256sums' extension but a path can
+be passed with '--sha256sums_file' option. If '-m' is not passed, then
+the sha256sums of the exported_tasker_config xml file will be added to
+the exported_tasker_config_info file instead.
 
 Set verbose level to 1 or 2 to get more info when running
 tasker_config_utils generate_config_info command.
@@ -432,10 +444,10 @@ files on export.
 
 ##### Examples:
 
-- Generate a markdown project info file for a given tasker config file.  
+- Generate a markdown config info file for a given tasker config file.  
   `tasker_config_utils generate_config_info -v -a "config.xml" "config.md"`  
 
-- Generate a markdown project info file of a specific project.  
+- Generate a markdown config info file of a specific project.  
   `tasker_config_utils generate_config_info -v -p "Foo_Bar.prf.xml" "Foo_Bar-out.prf.md" "Foo Bar"`  
 ##
 

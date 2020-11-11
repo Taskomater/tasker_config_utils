@@ -20,6 +20,15 @@ All notable changes to this project will be documented in this file.
 `-`
 
 
+## [0.5.0] - 2020-11-11
+
+### Added
+- Added support for creating `.sha256sums` file for config xml and info files for `generate_config_info` command using `-m` and `--sha256sums_file` options. This will allow for integrity verification of the config info file as well, specially since it now contains code description.  
+
+### Removed
+- Removed `sha256sums` tag from config info file for `generate_config_info` command if `-m` is not passed.  
+
+
 ## [0.4.0] - 2020-11-09
 
 ### Added
@@ -63,8 +72,9 @@ All notable changes to this project will be documented in this file.
 ##
 
 
-[unreleased]: https://github.com/Taskomater/tasker_config_utils/compare/v0.4.0...HEAD
-[0.3.0]: https://github.com/Taskomater/tasker_config_utils/compare/v0.3.0...v0.4.0
+[unreleased]: https://github.com/Taskomater/tasker_config_utils/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/Taskomater/tasker_config_utils/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/Taskomater/tasker_config_utils/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Taskomater/tasker_config_utils/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/Taskomater/tasker_config_utils/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/Taskomater/tasker_config_utils/compare/v0.2.0...v0.2.1

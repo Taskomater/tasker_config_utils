@@ -10,11 +10,11 @@
 #description:   various tasker config utils
 #author:        agnostic-apollo
 #usage:         run "bash tasker_config_utils --help"
-#date:          06-Nov-2020
+#date:          11-Nov-2020
 #bash version:  4.0 or higher
 #credits:       -
 #license:       MIT License
-version=0.4.0
+version=0.5.0
 
 
 
@@ -91,9 +91,11 @@ new_exported_tasker_project="" #default to none
 
 exported_tasker_config="" #default to none
 exported_tasker_config_info="" #default to none
+exported_tasker_config_sha256sums="" #default to none
 generate_config_info_mode="" #default to none
 put_task_help_in_code_block=0 #default to 0
 add_script_signature_to_config_info=0 #default to 0
+create_sha256sums_file=0 #default to 0
 
 tasker_config_utils_verbose_level=0 #default to log level 0
 tasker_config_utils_args_verbose_level=0 #set this to "1" manually, if you want to debug arguments received
@@ -1163,7 +1165,7 @@ tasker_config_utils_generate_config_info() {
 	fi
 
 	#find sha256sum of exported_tasker_config
-	exported_tasker_config_sha256sum="$(sha256sum "$exported_tasker_config")"
+	exported_tasker_config_sha256sum_value="$(sha256sum "$exported_tasker_config")"
 	return_value=$?
 	if [ $return_value -ne 0 ]; then
 		tasker_config_utils_log_errors "Failed to find sha256sum of exported_tasker_config"
@@ -1171,7 +1173,7 @@ tasker_config_utils_generate_config_info() {
 	fi
 
 	#remove filename from sha256sum of exported_tasker_config
-	exported_tasker_config_sha256sum="$(echo "$exported_tasker_config_sha256sum" | cut -d " " -f 1)"
+	exported_tasker_config_sha256sum_value="$(echo "$exported_tasker_config_sha256sum_value" | cut -d " " -f 1)"
 	return_value=$?
 	if [ $return_value -ne 0 ]; then
 		tasker_config_utils_log_errors "Failed to remove filename from sha256sum of exported_tasker_config"
@@ -1391,7 +1393,12 @@ tasker_config_utils_generate_config_info() {
 	export_info=$'\n\n&nbsp;\n'"## Export Info:"
 	export_info+=$'\n**Tasker Version:** `'"$tasker_version"'`  '
 	export_info+=$'\n**Timestamp:** `'"$timestamp"'`  '
-	export_info+=$'\n**sha256sum:** `'"$exported_tasker_config_sha256sum"'`  '
+
+	#if create_sha256sums_file is not enabled
+	if [[ "$create_sha256sums_file" != "1" ]]; then
+		export_info+=$'\n**sha256sum:** `'"$exported_tasker_config_sha256sum_value"'`  '
+	fi
+	
 	export_info+=$'\n&nbsp;'
 
 	profiles_name_list=$'\n\n&nbsp;\n'"## Profile Names:"
@@ -1746,11 +1753,28 @@ tasker_config_utils_generate_config_info() {
 
 
 	tasker_config_utils_log_literal 1 "\n"
-	tasker_config_utils_log 1 "Writing All Info To Output File"
+	tasker_config_utils_log 1 "Creating config info file at \"$exported_tasker_config_info\""
+
+	exported_tasker_config_basename="${exported_tasker_config##*/}"																                           #strip longest match of */ from start
+	
+	exported_tasker_config_info_basename="${exported_tasker_config_info##*/}"																                 #strip longest match of */ from start
+	exported_tasker_config_info_directory="${exported_tasker_config_info:0:${#exported_tasker_config_info} - ${#exported_tasker_config_info_basename}}"       #substring from 0 to position of basename
+	exported_tasker_config_info_basename_without_file_extension="${exported_tasker_config_info_basename%.[^.]*}"								              #strip shortest match of . plus at least one non-dot char from end
+	
+	exported_tasker_config_info_file_extension="${exported_tasker_config_info_basename:${#exported_tasker_config_info_basename_without_file_extension} + 1}"  #substring from length of basename_without_extension plus one to end
+	#if basename_without_extension is not set but extension is set, set extension to basename_without_extension
+	if [[ -z "$exported_tasker_config_info_basename_without_file_extension" ]] && [[ ! -z "$exported_tasker_config_info_file_extension" ]]; then
+		exported_tasker_config_info_basename_without_file_extension=".$exported_tasker_config_info_file_extension"
+		exported_tasker_config_info_file_extension=""
+	fi
+	#remove trailing slashes if not root
+	case $exported_tasker_config_info_directory in *[!/]*/) exported_tasker_config_info_directory=${exported_tasker_config_info_directory%"${exported_tasker_config_info_directory##*[!/]}"};; *[/]) exported_tasker_config_info_directory="/";; esac
+
+
 
 	#if generate_config_info_mode is set to "all"
 	if [[ "$generate_config_info_mode" == "all" ]]; then
-		exported_tasker_config_info_name=$(basename "$exported_tasker_config_info" | cut -d '.' -f 1 | sed 's/_/ /g')
+		exported_tasker_config_info_name=$(echo "$exported_tasker_config_info_basename" | cut -d '.' -f 1 | sed 's/_/ /g')
 		exported_tasker_config_info_output="# $exported_tasker_config_info_name"
 	#if generate_config_info_mode is set to "project"
 	elif [[ "$generate_config_info_mode" == "project" ]]; then
@@ -1762,9 +1786,7 @@ tasker_config_utils_generate_config_info() {
 
 
 
-	###Create project info file at exported_tasker_config_info
-	tasker_config_utils_log_literal 1 "\n"
-	tasker_config_utils_log 1 "Creating project info file at exported_tasker_config_info \"$exported_tasker_config_info\""
+	###Create config info file at exported_tasker_config_info
 
 	#create exported_tasker_config_info parent directory if it does not exist
 	tasker_config_utils_create_parent_path "$exported_tasker_config_info" "exported_tasker_config_info"
@@ -1778,7 +1800,7 @@ tasker_config_utils_generate_config_info() {
 	echo -n "" > "$exported_tasker_config_info"
 	return_value=$?
 	if [ $return_value -ne 0 ]; then
-		tasker_config_utils_log_errors "Failed to create project info file at exported_tasker_config_info \"$exported_tasker_config_info\""
+		tasker_config_utils_log_errors "Failed to create config info file at exported_tasker_config_info \"$exported_tasker_config_info\""
 		return $return_value
 	fi
 
@@ -1811,8 +1833,87 @@ tasker_config_utils_generate_config_info() {
 	#write exported_tasker_config_info_output to exported_tasker_config_info file
 	echo "$exported_tasker_config_info_output" >> "$exported_tasker_config_info"
 	return_value=$?
+	if [ $return_value -ne 0 ]; then
+		tasker_config_utils_log_errors "Failed to write to config info file at exported_tasker_config_info \"$exported_tasker_config_info\""
+		return $return_value
+	fi
 
-	return $return_value
+
+
+	###Create config sha256sums file at exported_tasker_config_sha256sums
+
+	#if create_sha256sums_file is enabled
+	if [[ "$create_sha256sums_file" == "1" ]]; then
+		#find sha256sum of exported_tasker_config_info
+		exported_tasker_config_info_sha256sum_value="$(sha256sum "$exported_tasker_config_info")"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to find sha256sum of exported_tasker_config_info"
+			return $return_value
+		fi
+
+		#remove filename from sha256sum of exported_tasker_config_info
+		exported_tasker_config_info_sha256sum_value="$(echo "$exported_tasker_config_info_sha256sum_value" | cut -d " " -f 1)"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to remove filename from sha256sum of exported_tasker_config_info"
+			return $return_value
+		fi
+
+		#if exported_tasker_config_sha256sums is not set
+		if [ -z "$exported_tasker_config_sha256sums" ]; then
+			#set exported_tasker_config_sha256sums_basename to a name with the same basename as the config info file
+			exported_tasker_config_sha256sums_basename="${exported_tasker_config_info_basename_without_file_extension}.sha256sums"
+
+			#set exported_tasker_config_sha256sums to a file with the same basename as the config info file in the same directory as the config info
+			#if exported_tasker_config_info_directory is not set
+			if [ -z "$exported_tasker_config_info_directory" ]; then
+				exported_tasker_config_sha256sums="$exported_tasker_config_sha256sums_basename"
+			else
+				exported_tasker_config_sha256sums="$exported_tasker_config_info_directory/$exported_tasker_config_sha256sums_basename"
+			fi
+		else
+			#create exported_tasker_config_sha256sums parent directory if it does not exist
+			tasker_config_utils_create_parent_path "$exported_tasker_config_sha256sums" "exported_tasker_config_sha256sums"
+			return_value=$?
+			if [ $return_value -ne 0 ]; then
+				tasker_config_utils_log_errors "tasker_config_utils_create_parent_path failed with exit code $return_value"
+				return $return_value
+			fi
+		fi
+
+		exported_tasker_config_sha256sums_output=""
+		exported_tasker_config_sha256sums_output+="$exported_tasker_config_sha256sum_value $exported_tasker_config_basename"$'\n'
+		exported_tasker_config_sha256sums_output+="$exported_tasker_config_info_sha256sum_value $exported_tasker_config_info_basename"
+
+
+		tasker_config_utils_log 1 "Creating config sha256sums file at \"$exported_tasker_config_sha256sums\""
+
+		#create empty file at exported_tasker_config_sha256sums
+		echo -n "" > "$exported_tasker_config_sha256sums"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to create config sha256sums file at exported_tasker_config_sha256sums \"$exported_tasker_config_sha256sums\""
+			return $return_value
+		fi
+
+		#if exported_tasker_config_sha256sums file is not found
+		if [ ! -f "$exported_tasker_config_sha256sums" ]; then
+			tasker_config_utils_log_errors "Failed to find \"$exported_tasker_config_sha256sums\" file"
+			return 1
+		fi
+
+		#write exported_tasker_config_sha256sums_output to exported_tasker_config_sha256sums file
+		echo "$exported_tasker_config_sha256sums_output" >> "$exported_tasker_config_sha256sums"
+		return_value=$?
+		if [ $return_value -ne 0 ]; then
+			tasker_config_utils_log_errors "Failed to write to config sha256sums file at exported_tasker_config_sha256sums \"$exported_tasker_config_sha256sums\""
+			return $return_value
+		fi
+	fi
+	
+
+	return 0
 
 }
 
@@ -2268,7 +2369,7 @@ process_tasker_config_utils_parameters () {
 		generate_config_info)
 			command_type="$sub_command"
 			tasker_config_utils_log_args "Parsing sub_command: '${sub_command}'"
-			optspec=":hvacps-:"
+			optspec=":hvacmps-:"
 			#process generate_config_info command options
 			while getopts "$optspec" opt; do
 				case ${opt} in
@@ -2299,6 +2400,15 @@ process_tasker_config_utils_parameters () {
 								code_description="$(echo "$val")" #remove trailing newlines
 								;;
 							code_description | code_description=)
+								tasker_config_utils_log_arg_errors "No parameters set for option: '--${OPTARG%=*}'"
+								exit_tasker_config_utils_on_error "$command_type"
+								;;
+							sha256sums_file=?*)
+								val="$long_optargs"
+								tasker_config_utils_log_args "Parsing option: '--${OPTARG%=*}', value: '${val}'"
+								exported_tasker_config_sha256sums="$(echo "$val")" #remove trailing newlines
+								;;
+							sha256sums_file | sha256sums_file=)
 								tasker_config_utils_log_arg_errors "No parameters set for option: '--${OPTARG%=*}'"
 								exit_tasker_config_utils_on_error "$command_type"
 								;;
@@ -2342,6 +2452,10 @@ process_tasker_config_utils_parameters () {
 					c)
 						tasker_config_utils_log_args "Parsing option: '-${opt}'"
 						put_task_help_in_code_block="1"
+						;;
+					m)
+						tasker_config_utils_log_args "Parsing option: '-${opt}'"
+						create_sha256sums_file="1"
 						;;
 					p)
 						tasker_config_utils_log_args "Parsing option: '-${opt}'"
@@ -2672,12 +2786,15 @@ Available command_options:
   [ -v | -vv ]       set verbose level to 1 or 2
   [ -a ]             extract all info
   [ -c ]             put task help in a code block
+  [ -m ]             create sha256sums file config xml and info files 
   [ -p ]             extract info of a specific project
   [ -s ]             add script signature at end of config info file
   [ --text_description=<description> ]
                      text description of config
   [ --code_description=<description> ]
                      code description of config
+  [ --sha256sums_file=<path> ]
+                     path to sha256sums file
 
 
 The options '-a' and '-p' set the generate_config_info_mode of the
@@ -2694,7 +2811,7 @@ depending on XML file size.
 The '-p' option sets the generate_config_info_mode to "project"
 mode. If this is passed, then exported_tasker_config should be
 the path to a Tasker exported "Project" XML file of which the
-project info needs to be generated. You may optionally pass a
+config info needs to be generated. You may optionally pass a
 Tasker "Data Backup" XML file instead. Only the info of profiles,
 scenes and tasks belonging to the project will be generated. The
 project_name should be the Tasker project name which was exported to
@@ -2716,6 +2833,14 @@ under the 'Description' heading at the start.
 The string passed with the '--code_description' option will be added
 under the 'Code Description' heading at the end in a markdown code
 block.
+
+The '-m' option will create a sha256sum file for exported_tasker_config
+and exported_tasker_config_info files. The sha256sum file will by
+default be created in same directory as exported_tasker_config_info
+and the same basename except with a '.sha256sums' extension but a path can
+be passed with '--sha256sums_file' option. If '-m' is not passed, then
+the sha256sums of the exported_tasker_config xml file will be added to
+the exported_tasker_config_info file instead.
 
 Set verbose level to 1 or 2 to get more info when running
 tasker_config_utils generate_config_info command.
@@ -2753,10 +2878,10 @@ show_tasker_config_utils_generate_config_info_help_extra () {
 
 ##### Examples:
 
-- Generate a markdown project info file for a given tasker config file.  
+- Generate a markdown config info file for a given tasker config file.  
   `tasker_config_utils generate_config_info -v -a "config.xml" "config.md"`  
 
-- Generate a markdown project info file of a specific project.  
+- Generate a markdown config info file of a specific project.  
   `tasker_config_utils generate_config_info -v -p "Foo_Bar.prf.xml" "Foo_Bar-out.prf.md" "Foo Bar"`  
 TASKER_CONFIG_UTILS_HELP_EOF
 
