@@ -1883,8 +1883,8 @@ tasker_config_utils_generate_config_info() {
 		fi
 
 		exported_tasker_config_sha256sums_output=""
-		exported_tasker_config_sha256sums_output+="$exported_tasker_config_sha256sum_value $exported_tasker_config_basename"$'\n'
-		exported_tasker_config_sha256sums_output+="$exported_tasker_config_info_sha256sum_value $exported_tasker_config_info_basename"
+		exported_tasker_config_sha256sums_output+="$exported_tasker_config_sha256sum_value  $exported_tasker_config_basename"$'\n'
+		exported_tasker_config_sha256sums_output+="$exported_tasker_config_info_sha256sum_value  $exported_tasker_config_info_basename"
 
 
 		tasker_config_utils_log 1 "Creating config sha256sums file at \"$exported_tasker_config_sha256sums\""
